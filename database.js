@@ -135,6 +135,7 @@ function computeMonthlyRevenue(empJsonObj, revenueYear, monthIndex) {
    var monthIdxStartDate = new Date(revenueYear, monthIndex, monthFirstDate);
    var monthIdxEndDate = new Date(revenueYear, monthIndex + 1, monthLastDate);
 
+   var revenueMonth = printf("%02s%04s", monthIndex + 1, intRevYear);
    var revStart = -1;
    var revEnd = -1;
    var revMonthStartDate = 0;
@@ -142,55 +143,62 @@ function computeMonthlyRevenue(empJsonObj, revenueYear, monthIndex) {
    var revenueAmount = 0;
    var cmiAmount = 0;
 
-   return new Promise((resolve, _reject) => {
-      if (sowStart != 0 && !isNaN(sowStart)) {
-         if (sowStart.getFullYear() === intRevYear) { /* sow start year is same as required year */
-            revStart = sowStart;
-         } else if (sowStart.getFullYear() < intRevYear) { /* sow start year is not the same as required year */
-            revStart = new Date(intRevYear, firstMonth, 1);
+   if (sowStart != 0 && !isNaN(sowStart)) {
+      if (sowStart.getFullYear() === intRevYear) { /* sow start year is same as required year */
+         revStart = sowStart;
+      } else if (sowStart.getFullYear() < intRevYear) { /* sow start year is not the same as required year */
+         revStart = new Date(intRevYear, firstMonth, 1);
+      }
+   }
+
+   if (sowEnd != 0 && !isNaN(sowEnd)) {
+      if (sowEnd.getFullYear() === intRevYear) { /* sow end year is same as required year */
+         revEnd = sowEnd;
+      } else if (sowEnd.getFullYear() > intRevYear) { /* sow start end is not the same as required year */
+         revEnd = new Date(intRevYear, lastMonth, 0);
+      }
+   }
+
+   var revStartMonth = new Date(revStart).getMonth();
+   var revEndMonth = new Date(revEnd).getMonth();
+
+   if (!foreSeenEnd || !isNaN(foreSeenEnd)) {
+      foreSeenEnd = -1;
+   }
+
+   if (monthIndex === revStartMonth) {
+      revMonthStartDate = new Date(intRevYear, monthIndex, revStart.getDate());
+   } else {
+      revMonthStartDate = new Date(intRevYear, monthIndex, monthFirstDate);
+   }
+
+   if (monthIndex === revEndMonth) {
+      revMonthEndDate = new Date(intRevYear, monthIndex, revEnd.getDate());
+   } else {
+      revMonthEndDate = new Date(intRevYear, monthIndex + 1, monthLastDate);
+   }
+
+   return new Promise((resolve, reject) => {
+      if (revStart === -1 || revEnd === -1) {
+         if (revStart === -1) {
+            reject("SOW start date is not defined for selected employee");
+         } else {
+            reject("SOW end date is not defined for selected employee");
          }
-      }
-
-      if (sowEnd != 0 && !isNaN(sowEnd)) {
-         if (sowEnd.getFullYear() === intRevYear) { /* sow end year is same as required year */
-            revEnd = sowEnd;
-         } else if (sowEnd.getFullYear() > intRevYear) { /* sow start end is not the same as required year */
-            revEnd = new Date(intRevYear, lastMonth, 0);
-         }
-      }
-
-      var revStartMonth = new Date(revStart).getMonth();
-      var revEndMonth = new Date(revEnd).getMonth();
-
-      if (!foreSeenEnd || !isNaN(foreSeenEnd)) {
-         foreSeenEnd = -1;
-      }
-
-      if (monthIndex === revStartMonth) {
-         revMonthStartDate = new Date(intRevYear, monthIndex, revStart.getDate());
       } else {
-         revMonthStartDate = new Date(intRevYear, monthIndex, monthFirstDate);
-      }
-      if (monthIndex === revEndMonth) {
-         revMonthEndDate = new Date(intRevYear, monthIndex, revEnd.getDate());
-      } else {
-         revMonthEndDate = new Date(intRevYear, monthIndex + 1, monthLastDate);
-      }
-
-      var revenueMonth = printf("%02s%04s", monthIndex + 1, intRevYear);
-
-      calcRevenueDays(monthIndex, empJsonObj, revMonthStartDate, revMonthEndDate, foreSeenEnd).then((revenueDays) => {
-         if (monthIdxStartDate >= sowStart && monthIdxEndDate <= sowEnd) { /* check each month of selected year fall within SOW range */
-            cmiAmount = ((revenueDays * billHourPerDay) * billRatePerHr) / 100;
-         }
-         calcMonthBuffers(monthIndex, empJsonObj[0].buffers).then((bufferDays) => {
+         calcRevenueDays(monthIndex, empJsonObj, revMonthStartDate, revMonthEndDate, foreSeenEnd).then((revenueDays) => {
             if (monthIdxStartDate >= sowStart && monthIdxEndDate <= sowEnd) { /* check each month of selected year fall within SOW range */
-               revenueAmount = (((revenueDays - bufferDays) * billHourPerDay) * billRatePerHr) / 100;
+               cmiAmount = ((revenueDays * billHourPerDay) * billRatePerHr) / 100;
             }
-            var empRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiAmount };
-            resolve(empRevenueObj);
+            calcMonthBuffers(monthIndex, empJsonObj[0].buffers).then((bufferDays) => {
+               if (monthIdxStartDate >= sowStart && monthIdxEndDate <= sowEnd) { /* check each month of selected year fall within SOW range */
+                  revenueAmount = (((revenueDays - bufferDays) * billHourPerDay) * billRatePerHr) / 100;
+               }
+               var empRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiAmount };
+               resolve(empRevenueObj);
+            });
          });
-      });
+      }
    });
 }
 

@@ -84,9 +84,9 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
       var foreSeen = new Date(dateTime.parse(empJsonObj[0].foreseenEndDate, "DDMMYYYY", true));
       var billRatePerHr = parseInt(empJsonObj[0].billRatePerHr, 10);
       var billHourPerDay = parseInt(empJsonObj[0].wrkHrPerDay, 10);
+      var intRevYear = parseInt(revenueYear, 10);
       var revStart = -1;
       var revEnd = -1;
-      var intRevYear = parseInt(revenueYear, 10);
 
       if (sowStart != 0 && !isNaN(sowStart)) {
          if (sowStart.getFullYear() === intRevYear) { /* sow start year is same as required year */
@@ -96,6 +96,7 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
          }
       }
 
+
       if (sowEnd != 0 && !isNaN(sowEnd)) {
          if (sowEnd.getFullYear() === intRevYear) { /* sow end year is same as required year */
             revEnd = sowEnd;
@@ -104,111 +105,110 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
          }
       }
 
-      if (!foreSeen || isNaN(foreSeen)) {
-         foreSeen = -1;
+      if (foreSeen != 0 && !isNaN(foreSeen)) {
+         var foreSeen = -1;
       }
 
-      if (revStart === -1 || revEnd === -1) {
-         if (revStart === -1) {
-            reject("Selected employee has no SOW Start Date !");
+      var revStartMonth = new Date(revStart).getMonth();
+      var revEndMonth = new Date(revEnd).getMonth();
+      for (var monthIndex = firstMonth; monthIndex <= lastMonth; monthIndex++) {
+         console.log(monthIndex);
+         var revMonthStartDate = 0;
+         var revMonthEndDate = 0;
+         var revenueDays = 0;
+         var revenueAmount = 0;
+         var personalDays = 0
+         var bufferDays = 0;
+         var locationHolidays = 0;
+
+         if (monthIndex === revStartMonth) {
+            revMonthStartDate = new Date(intRevYear, monthIndex, revStart.getDate());
          } else {
-            reject("Selected employeed has no SOW End Date !");
+            revMonthStartDate = new Date(intRevYear, monthIndex, monthFirstDate);
          }
-      } else {
-         var revStartMonth = revStart.getMonth();
-         var revEndMonth = revEnd.getMonth();
+         if (monthIndex === revEndMonth) {
+            revMonthEndDate = new Date(intRevYear, monthIndex, revEnd.getDate());
+         } else {
+            revMonthEndDate = new Date(intRevYear, monthIndex + 1, monthLastDate);
+         }
 
-         for (var monthIndex = firstMonth; monthIndex <= lastMonth; monthIndex++) {
-            var revenueDays = 0;
-            var revMonthStartDate = 0;
-            var revMonthEndDate = 0;
-            var revenueAmount = 0;
-            var daysBetween = 0;
-
-            if (monthIndex === revStartMonth) {
-               revMonthStartDate = new Date(intRevYear, monthIndex, revStart.getDate());
-            } else {
-               revMonthStartDate = new Date(intRevYear, monthIndex, monthFirstDate);
-            }
-
-            if (monthIndex === revEndMonth) {
-               revMonthEndDate = new Date(intRevYear, monthIndex, revEnd.getDate());
-            } else {
-               revMonthEndDate = new Date(intRevYear, monthIndex + 1, monthLastDate);
-            }
-
+         return new Promise((resolve, _reject) => {
             workDaysBetween(revMonthStartDate, revMonthEndDate).then((daysBetween) => {
-               weekDays += daysBetween;
-               if (monthIndex >= revStartMonth && monthIndex <= revEndMonth) {
-                  var weekDays = 0;
-                  var personalDays = 0;
-                  var bufferDays = 0;
-                  var locationHolidays = 0;
-
-                  /* get leaves */
-                  empJsonObj[0].leaves.forEach((leave) => {
-                     var leaveStart = new Date(dateTime.parse(leave.startDate, "DDMMYYYY", true));
-                     var leaveEnd = new Date(dateTime.parse(leave.endDate, "DDMMYYYY", true));
-                     if (monthIndex === leaveStart.getMonth()) {
-                        if (monthIndex === leaveEnd.getMonth()) {
-                           workDaysBetween(startDate, leaveEnd).then(daysBetween => {
-                              personalDays += parseInt(daysBetween, 10);
-                           });
-                        } else {
-                           workDaysBetween(leaveStart, revMonthEndDate).then((daysBetween) => {
-                              personalDays += parseInt(daysBetween, 10);
-                           });
+               resolve(daysBetween);
+            });
+         }).then((weekDays) => {
+            return new Promise(() => {
+               var monthIndexStart = new Date(revenueYear, monthIndex, monthFirstDate);
+               var monthIndexEnd = new Date(revenueYear, monthIndex + 1, monthLastDate);
+               console.log("monthIndexStart: " + monthIndexStart);
+               console.log("monthIndexEnd: " + monthIndexEnd);
+               if (monthIndexStart >= revMonthStartDate && monthIndexEnd <= revMonthEndDate) { /* check if month of selected year fall within SOW range */
+                  return new Promise((resolve, _reject) => {
+                     empJsonObj[0].leaves.forEach((leave) => {
+                        var leaveStart = new Date(dateTime.parse(leave.startDate, "DDMMYYYY", true));
+                        var leaveEnd = new Date(dateTime.parse(leave.endDate, "DDMMYYYY", true));
+                        if (monthIndex === leaveStart.getMonth() && monthIndex !== leaveEnd.getMonth()) {
+                           leaveEnd = revMonthEndDate;
+                        } else if (monthIndex === leaveEnd.getMonth()) {
+                           leaveStart = revMonthStartDate;
                         }
-                     } else if (monthIndex === leaveEnd.getMonth()) {
-                        workDaysBetween(revMonthStartDate, leaveEnd).then((daysBetween) => {
+
+                        return new Promise(() => {
+                           workDaysBetween(leaveStart, leaveEnd).then((daysBetween) => {
+                              resolve(daysBetween);
+                           });
+                        }).then((daysBetween) => {
                            personalDays += parseInt(daysBetween, 10);
                         });
-                     }
-                  });
+                     });
+                     return (personalDays);
+                  }).then(() => { /* get buffer days */
+                     empJsonObj[0].buffers.forEach((buffer) => {
+                        var bufferMonth = new Date(dateTime.parse(buffer.month, "MMYYYY", true)).getMonth();
+                        if (monthIndex === bufferMonth) {
+                           bufferDays += parseInt(buffer.days, 10);
+                        }
+                     });
+                     return (bufferDays);
+                  }).then(() => { /* get public holidays */
+                     return new Promise((resolve, _reject) => {
+                        empJsonObj[0].publicHolidays.forEach((publicHoliday) => {
+                           var pubHolStart = new Date(dateTime.parse(publicHoliday.startDate, "DDMMYYYY", true));
+                           var pubHolEnd = new Date(dateTime.parse(publicHoliday.endDate, "DDMMYYYY", true));
+                           if (monthIndex === pubHolStart.getMonth() && monthIndex !== pubHolEnd.getMonth()) {
+                              pubHolEnd = revMonthEndDate;
+                           } else if (monthIndex === pubHolEnd.getMonth()) {
+                              pubHolStart = revMonthStartDate;
+                           }
 
-                  /* get buffer days */
-                  empJsonObj[0].buffers.forEach((buffer) => {
-                     var bufferMonth = new Date(dateTime.parse(buffer.month, "MMYYYY", true)).getMonth();
-                     if (monthIndex === bufferMonth) {
-                        bufferDays += parseInt(buffer.days, 10);
-                     }
-                  });
-
-                  /* get public holidays */
-                  empJsonObj[0].publicHolidays.forEach((publicHoliday) => {
-                     var pubHolStart = new Date(dateTime.parse(publicHoliday.startDate, "DDMMYYYY", true));
-                     var pubHolEnd = new Date(dateTime.parse(publicHoliday.endDate, "DDMMYYYY", true));
-                     if (monthIndex === pubHolStart.getMonth()) {
-                        if (monthIndex === pubHolEnd.getMonth()) {
-                           daysBetween = workDaysBetween(pubHolStart, pubHolEnd);
-                           locationHolidays += parseInt(daysBetween, 10);
-                        } else if (monthIndex === pubHolEnd.getMonth()) {
-                           workDaysBetween(pubHolStart, revMonthEndDate).then((daysBetween) => {
+                           return new Promise(() => {
+                              workDaysBetween(pubHolStart, pubHolEnd).then((daysBetween) => {
+                                 resolve(daysBetween);
+                              });
+                           }).then((daysBetween) => {
                               locationHolidays += parseInt(daysBetween, 10);
                            });
-                        }
-                     } else if (monthIndex === pubHolEnd.getMonth()) {
-                        workDaysBetween(revMonthStartDate, pubHolEnd).then((daysBetween) => {
-                           locationHolidays += parseInt(daysBetween, 10);
                         });
+                        return (locationHolidays);
+                     });
+                  }).then((locationHolidays) => {
+                     console.log("weekDays: " + weekDays + "   personalDays: " + personalDays + "   bufferDays: " + bufferDays + "   locationHolidays: " + locationHolidays);
+                     if (weekDays > 0) {
+                        revenueDays = weekDays - (personalDays + bufferDays + locationHolidays);
+                        if (revenueDays > 0) {
+                           revenueAmount = ((revenueAmount * billHourPerDay) * billRatePerHr) / 100;
+                        }
                      }
-                  });
 
-                  if (weekDays > 0) {
-                     revenueDays = weekDays - (personalDays + bufferDays + locationHolidays);
-                     if (revenueDays > 0) {
-                        revenueAmount = ((revenueDays * billHourPerDay) * billRatePerHr) / 100;
-                     }
-                  }
+                     var revenueMonth = printf("%02s%04s", monthIndex + 1, intRevYear);
+                     var tempObj = "{" + revenueMonth + ": {startDate: " + revMonthStartDate + ", endDate: " + revMonthEndDate + ", revenue: " + revenueAmount + "}}";
+                     empRevenueObj.push(tempObj);
+                     console.log(empRevenueObj);
+                  });
                }
-               var revenueMonth = printf("%02s%04s", monthIndex + 1, intRevYear);
-               var tempObj = "{" + revenueMonth + ": {startDate: " + revMonthStartDate + ", endDate: " + revMonthEndDate + ", revenue: " + revenueAmount + "}}";
-               empRevenueObj.push(tempObj);
             });
-         }
-      }
-      console.log(empRevenueObj);
-      resolve(empRevenueObj);
+         });
+      } /* end of month looper */
    });
 }
 

@@ -8,6 +8,7 @@ const database = "invoicesdb";
 const empProjColl = "emp_proj";
 const esaProjColl = "esa_proj";
 const locLeaveColl = "loc_holiday";
+const empMonthRevColl = "emp_month_revenue"
 const lastMonth = 11;
 const firstMonth = 0;
 const monthFirstDate = 1;
@@ -46,61 +47,91 @@ function getDb() {
 }
 
 
-/* calculate number of weekdays(mon - fri) between dates */
-function workDaysBetween(startDate, endDate) {
-   return new Promise((resolve, reject) => {
+function updEmpMonthRevenue(empJsonObj, monthRevArr) {
+   return new Promise((resolve, _reject) => {
+      let empEsaLink = empJsonObj[0].empEsaLink;
+      let ctsEmpId = empJsonObj[0].ctsEmpId;
+      let month = monthRevArr.month;
+      let startDate = dateFormat((new Date(dateTime.parse(monthRevArr.startDate, "DD-MMM-YYYY", true))), "DDMMYYYY");
+      let endDate = dateFormat((new Date(dateTime.parse(monthRevArr.endDate, "DD-MMM-YYYY", true))), "DDMMYYYY");
+      let cmiRevenue = monthRevArr.cmiRevenue;
+      let monthRevenue = monthRevArr.monthRevenue;
+      let empMonthRevObj = { 'empEsaLink': empEsaLink, 'ctsEmpId': ctsEmpId, 'month': month, 'startDate': startDate, 'endDate': endDate, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
+      db = getDb();
+      var myCol = db.collection(empMonthRevColl);
+      myCol.updateOne({ 'empEsaLink': empEsaLink, 'ctsEmpId': ctsEmpId, 'month': month }, { $set: empMonthRevObj }, { upsert: true }).then((result) => {
+         resolve(result);
+      });
+   });
+}
+
+
+/* calculate number of days between */
+function getDaysBetween(startDate, endDate, getWeekDays) {
+   let daysBetween = 0;
+   return new Promise((resolve, _reject) => {
       if (!startDate || isNaN(startDate) || !endDate || isNaN(endDate)) {
-         reject(-1);
+         resolve(daysBetween);
       } else {
          /* clone date to avoid messing up original data */
          var fromDate = new Date(startDate.getTime());
          var toDate = new Date(endDate.getTime());
-         var daysBetween = 1;
 
          /* reset time */
          fromDate.setHours(0, 0, 0, 0);
          toDate.setHours(0, 0, 0, 0);
 
-         while (fromDate < toDate) {
-            fromDate.setDate(fromDate.getDate() + 1);
-            var dayOfWeek = fromDate.getDay();
-            /* check if the date is neither a Sunday(0) nor a Saturday(6) */
-            if (dayOfWeek > 0 && dayOfWeek < 6) {
-               daysBetween++;
+         daysBetween = 1;
+         if (fromDate === toDate) {
+            resolve(daysBetween);
+         } else {
+            while (fromDate < toDate) {
+               fromDate.setDate(fromDate.getDate() + 1);
+               var dayOfWeek = fromDate.getDay();
+               /* check if the date is neither a Sunday(0) nor a Saturday(6) */
+               if (getWeekDays === true) {
+                  if (dayOfWeek > 0 && dayOfWeek < 6) {
+                     daysBetween++;
+                  }
+               } else {
+                  daysBetween++;
+               }
             }
+            resolve(daysBetween);
          }
-         resolve(daysBetween);
       }
    });
 };
 
 
-function calcMonthLeaves(monthIndex, leaveArrObj, revMonthStartDate, revMonthEndDate) {
-   var leaveDays = 0;
+function calcMonthLeaves(empLeaveArrObj, monthIndex, revMonthStartDate, revMonthEndDate) {
+   let leaveDays = 0;
    return new Promise((resolve, _reject) => {
-      leaveArrObj.forEach((leave) => {
-         var leaveStart = new Date(dateTime.parse(leave.startDate, "DDMMYYYY", true));
-         var leaveEnd = new Date(dateTime.parse(leave.endDate, "DDMMYYYY", true));
-         if (monthIndex === leaveStart.getMonth() && monthIndex !== leaveEnd.getMonth()) {
-            leaveEnd = revMonthEndDate;
-         } else if (monthIndex === leaveEnd.getMonth()) {
-            leaveStart = revMonthStartDate;
-         }
+      empLeaveArrObj.forEach((leave) => {
+         if (leave.startDate != 0 && !isNaN(leave.startDate) && leave.endDate != 0 && !isNaN(leave.endDate)) {
+            var leaveStart = new Date(dateTime.parse(leave.startDate, "DDMMYYYY", true));
+            var leaveEnd = new Date(dateTime.parse(leave.endDate, "DDMMYYYY", true));
+            if (monthIndex === leaveStart.getMonth() && monthIndex !== leaveEnd.getMonth()) {
+               leaveEnd = revMonthEndDate;
+            } else if (monthIndex === leaveEnd.getMonth()) {
+               leaveStart = revMonthStartDate;
+            }
 
-         workDaysBetween(leaveStart, leaveEnd).then((daysBetween) => {
-            leaveDays += parseInt(daysBetween, 10);
-         });
+            getDaysBetween(leaveStart, leaveEnd, true).then((daysBetween) => {
+               leaveDays += parseInt(daysBetween, 10);
+            });
+         }
       });
       resolve(leaveDays);
    });
 }
 
 
-function calcMonthBuffers(monthIndex, bufferArrObj) {
-   var bufferDays = 0;
+function calcMonthBuffers(empBufferArrObj, monthIndex) {
+   let bufferDays = 0;
    return new Promise((resolve, _reject) => {
-      bufferArrObj.forEach((buffer) => {
-         var bufferMonth = new Date(dateTime.parse(buffer.month, "MMYYYY", true)).getMonth();
+      empBufferArrObj.forEach((buffer) => {
+         let bufferMonth = new Date(dateTime.parse(buffer.month, "MMYYYY", true)).getMonth();
          if (monthIndex === bufferMonth) {
             bufferDays += parseInt(buffer.days, 10);
          }
@@ -110,11 +141,11 @@ function calcMonthBuffers(monthIndex, bufferArrObj) {
 }
 
 
-function calcRevenueDays(monthIndex, empJsonObj, revMonthStartDate, revMonthEndDate, foreSeenEnd) {
+function calcRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate) {
    return new Promise((resolve, _reject) => {
-      workDaysBetween(revMonthStartDate, revMonthEndDate).then((weekDays) => {
-         calcMonthLeaves(monthIndex, empJsonObj[0].leaves, revMonthStartDate, revMonthEndDate).then((personalDays) => {
-            calcMonthLeaves(monthIndex, empJsonObj[0].publicHolidays, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
+      getDaysBetween(revMonthStartDate, revMonthEndDate, true).then((weekDays) => {
+         calcMonthLeaves(empJsonObj[0].leaves, monthIndex, revMonthStartDate, revMonthEndDate).then((personalDays) => {
+            calcMonthLeaves(empJsonObj[0].publicHolidays, monthIndex, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
                resolve(weekDays - (personalDays + locationLeaves));
             });
          });
@@ -123,96 +154,85 @@ function calcRevenueDays(monthIndex, empJsonObj, revMonthStartDate, revMonthEndD
 }
 
 
-function computeMonthlyRevenue(empJsonObj, revenueYear, monthIndex) {
-   var sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "DDMMYYYY", true));
-   var sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "DDMMYYYY", true));
-   var foreSeenEnd = new Date(dateTime.parse(empJsonObj[0].foreseenEndDate, "DDMMYYYY", true));
-   var billRatePerHr = parseInt(empJsonObj[0].billRatePerHr, 10);
-   var billHourPerDay = parseInt(empJsonObj[0].wrkHrPerDay, 10);
-
-   var intRevYear = parseInt(revenueYear, 10);
-
-   var monthIdxStartDate = new Date(revenueYear, monthIndex, monthFirstDate);
-   var monthIdxEndDate = new Date(revenueYear, monthIndex + 1, monthLastDate);
-
-   var revenueMonth = printf("%02s%04s", monthIndex + 1, intRevYear);
-   var revStart = -1;
-   var revEnd = -1;
-   var revMonthStartDate = 0;
-   var revMonthEndDate = 0;
-   var revenueAmount = 0;
-   var cmiAmount = 0;
-
-   if (sowStart != 0 && !isNaN(sowStart)) {
-      if (sowStart.getFullYear() === intRevYear) { /* sow start year is same as required year */
-         revStart = sowStart;
-      } else if (sowStart.getFullYear() < intRevYear) { /* sow start year is not the same as required year */
-         revStart = new Date(intRevYear, firstMonth, 1);
-      }
-   }
-
-   if (sowEnd != 0 && !isNaN(sowEnd)) {
-      if (sowEnd.getFullYear() === intRevYear) { /* sow end year is same as required year */
-         revEnd = sowEnd;
-      } else if (sowEnd.getFullYear() > intRevYear) { /* sow start end is not the same as required year */
-         revEnd = new Date(intRevYear, lastMonth, 0);
-      }
-   }
-
-   var revStartMonth = new Date(revStart).getMonth();
-   var revEndMonth = new Date(revEnd).getMonth();
-
-   if (!foreSeenEnd || !isNaN(foreSeenEnd)) {
-      foreSeenEnd = -1;
-   }
-
-   if (monthIndex === revStartMonth) {
-      revMonthStartDate = new Date(intRevYear, monthIndex, revStart.getDate());
-   } else {
-      revMonthStartDate = new Date(intRevYear, monthIndex, monthFirstDate);
-   }
-
-   if (monthIndex === revEndMonth) {
-      revMonthEndDate = new Date(intRevYear, monthIndex, revEnd.getDate());
-   } else {
-      revMonthEndDate = new Date(intRevYear, monthIndex + 1, monthLastDate);
-   }
-
-   return new Promise((resolve, reject) => {
-      if (revStart === -1 || revEnd === -1) {
-         if (revStart === -1) {
-            reject("SOW start date is not defined for selected employee");
-         } else {
-            reject("SOW end date is not defined for selected employee");
-         }
-      } else {
-         calcRevenueDays(monthIndex, empJsonObj, revMonthStartDate, revMonthEndDate, foreSeenEnd).then((revenueDays) => {
-            if (monthIdxStartDate >= sowStart && monthIdxEndDate <= sowEnd) { /* check each month of selected year fall within SOW range */
-               cmiAmount = ((revenueDays * billHourPerDay) * billRatePerHr) / 100;
-            }
-            calcMonthBuffers(monthIndex, empJsonObj[0].buffers).then((bufferDays) => {
-               if (monthIdxStartDate >= sowStart && monthIdxEndDate <= sowEnd) { /* check each month of selected year fall within SOW range */
-                  revenueAmount = (((revenueDays - bufferDays) * billHourPerDay) * billRatePerHr) / 100;
+function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStartDate, revMonthEndDate) {
+   return new Promise((resolve, _reject) => {
+      let billRatePerHr = parseInt(empJsonObj[0].billRatePerHr, 10);
+      let billHourPerDay = parseInt(empJsonObj[0].wrkHrPerDay, 10);
+      let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
+      let revenueAmount = 0;
+      let cmiRevenue = 0;
+      calcRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate).then((revenueDays) => {
+         let monthRevenueObj = "";
+         cmiRevenue = printf("%10.2f", (revenueDays * billHourPerDay * billRatePerHr) / 100);
+         calcMonthBuffers(empJsonObj[0].buffers, monthIndex).then((bufferDays) => {
+            revenueAmount = printf("%10.2f", ((revenueDays - bufferDays) * billHourPerDay * billRatePerHr) / 100);
+            monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
+            updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
+               const { matchedCount, modifiedCount, upsertedCount } = result;
+               console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);
+               if (matchedCount === 0 && upsertedCount >= 1) {
+                  if (upsertedCount === 1) {
+                     console.log("Inserted " + upsertedCount + " record");
+                  } else {
+                     console.log("Inserted " + upsertedCount + " records")
+                  }
+               } else if (matchedCount === 1 && modifiedCount >= 1) {
+                  if (modifiedCount === 1) {
+                     console.log("Updated " + modifiedCount + " record");
+                  } else {
+                     console.log("Updated " + modifiedCount + " records");
+                  }
+               } else {
+                  console.log("Nothing matches !");
                }
-               var empRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiAmount };
-               resolve(empRevenueObj);
             });
+            resolve(monthRevenueObj);
          });
-      }
+      });
    });
 }
 
 
 /* calculate revenue */
 function calcEmpRevenue(empJsonObj, revenueYear) {
-   let promises = [];
-   return new Promise((resolve, _reject) => {
-      for (var monthIndex = firstMonth; monthIndex <= lastMonth; monthIndex++) {
-         promises.push(computeMonthlyRevenue(empJsonObj, revenueYear, monthIndex));
+   let monthRevArr = [];
+   return new Promise((resolve, reject) => {
+      if (!empJsonObj[0].sowStartDate || isNaN(empJsonObj[0].sowStartDate)) {
+         reject("SOW start date is not defined for selected employee");
+      } else if (!empJsonObj[0].sowEndDate || isNaN(empJsonObj[0].sowEndDate)) {
+         reject("SOW end date is not defined for selected employee");
+      } else if (!empJsonObj[0].billRatePerHr || isNaN(empJsonObj[0].billRatePerHr)) {
+         reject("Billing hour per day is not defined for selected employee");
+      } else if (!empJsonObj[0].wrkHrPerDay || isNaN(empJsonObj[0].wrkHrPerDay)) {
+         reject("Billing rate is not defined for selected employee");
       }
+      let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "DDMMYYYY", true));
+      let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "DDMMYYYY", true));
 
-      Promise.all(promises).then((result) => {
-         resolve(result);
+      for (let monthIndex = firstMonth; monthIndex <= lastMonth; monthIndex++) {
+         let revMonthStartDate = new Date(revenueYear, monthIndex, monthFirstDate);
+         let revMonthEndDate = new Date(revenueYear, monthIndex + 1, monthLastDate);
+         if (sowStart.getFullYear() === parseInt(revenueYear, 10)) {
+            if (sowStart.getMonth() === monthIndex) {
+               revMonthStartDate = sowStart;
+            }
+         }
+
+         if (sowEnd.getFullYear() === parseInt(revenueYear, 10)) {
+            if (sowEnd.getMonth() === monthIndex) {
+               revMonthEndDate = sowEnd;
+            }
+         }
+         if (revMonthStartDate >= sowStart && revMonthEndDate <= sowEnd) {
+            monthRevArr.push(getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStartDate, revMonthEndDate));
+         } else {
+            let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
+            let monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': "0.00", 'cmiRevenue': "0.00" };
+            monthRevArr.push(monthRevenueObj);
+         }
+      }
+      Promise.all(monthRevArr).then((monthRevenue) => {
+         resolve(monthRevenue);
       });
    });
 }
@@ -222,7 +242,7 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
 function listAllProjects() {
    return new Promise((resolve, reject) => {
       db = getDb();
-      var myCol = db.collection(esaProjColl);
+      let myCol = db.collection(esaProjColl);
       myCol.aggregate([
          {
             $project: {
@@ -443,6 +463,33 @@ function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
 }
 
 
+function getProjectRevenue(projJsonObj, revenueYear) {
+   return new Promise((resolve, reject) => {
+      let monthRevenueArr = [];
+      listEmployeeInProj(projJsonObj[0].esaId).then((empInProj) => {
+         let cmiRevenue = 0;
+         let monthRevenue = 0;
+         getEmployeeProjection(employee.empEsaLink, employee.ctsEmpId, revenueYear).then((empDtl) => {
+            for (let monthIndex = firstMonth; monthIndex <= lastMonth; monthIndex++) {
+               let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
+               empInProj.forEach((employee) => {
+                  employee[0].revenue.forEach((monthRev) => {
+                     if (revenueMonth === monthRev.month) {
+                        cmiRevenue += parseFloat(montRev.cmiRevenue);
+                        monthRevenue += parseFloat(monthRev.monthRevenue);
+                     }
+                  });
+               });
+            }
+            let monthRevenueObj = { 'month': revenueMonth, 'cmiRevenue': cmiRevenue, 'monthRevenue': monthRevenue };
+            monthRevenueArr.push(monthRevenueObj);
+         });
+         resolve(monthRevenueArr);
+      });
+   });
+}
+
+
 
 //get leave days of all Employees
 function getAllEmployeeLeaves() {
@@ -519,9 +566,6 @@ function getAllEmployeeLeaves() {
       });
    });
 }
-
-
-
 
 
 //get projection data for all projects

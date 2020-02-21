@@ -8,7 +8,8 @@ const database = "invoicesdb";
 const empProjColl = "emp_proj";
 const esaProjColl = "esa_proj";
 const locLeaveColl = "loc_holiday";
-const empMonthRevColl = "emp_month_revenue"
+const empMonthRevColl = "emp_month_revenue";
+const empLeaveColl = "emp_leave";
 const lastMonth = 11;
 const firstMonth = 0;
 const monthFirstDate = 1;
@@ -52,8 +53,8 @@ function updEmpMonthRevenue(empJsonObj, monthRevArr) {
       let empEsaLink = empJsonObj[0].empEsaLink;
       let ctsEmpId = empJsonObj[0].ctsEmpId;
       let month = monthRevArr.month;
-      let startDate = dateFormat((new Date(dateTime.parse(monthRevArr.startDate, "DD-MMM-YYYY", true))), "DDMMYYYY");
-      let endDate = dateFormat((new Date(dateTime.parse(monthRevArr.endDate, "DD-MMM-YYYY", true))), "DDMMYYYY");
+      let startDate = dateFormat((new Date(dateTime.parse(monthRevArr.startDate, "DD-MMM-YYYY", true))), "ddmmyyyy");
+      let endDate = dateFormat((new Date(dateTime.parse(monthRevArr.endDate, "DD-MMM-YYYY", true))), "ddmmyyyy");
       let cmiRevenue = monthRevArr.cmiRevenue;
       let monthRevenue = monthRevArr.monthRevenue;
       let empMonthRevObj = { 'empEsaLink': empEsaLink, 'ctsEmpId': ctsEmpId, 'month': month, 'startDate': startDate, 'endDate': endDate, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
@@ -168,7 +169,7 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
             revenueAmount = printf("%10.2f", ((revenueDays - bufferDays) * billHourPerDay * billRatePerHr) / 100);
             monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
             updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
-               const { matchedCount, modifiedCount, upsertedCount } = result;
+               /*const { matchedCount, modifiedCount, upsertedCount } = result;
                console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);
                if (matchedCount === 0 && upsertedCount >= 1) {
                   if (upsertedCount === 1) {
@@ -184,7 +185,7 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
                   }
                } else {
                   console.log("Nothing matches !");
-               }
+               }*/
             });
             resolve(monthRevenueObj);
          });
@@ -266,7 +267,7 @@ function listAllProjects() {
 
 
 /* get employee list for selectd project */
-function listEmployeeInProj(projId) {
+function listEmployeeInProj(esaId) {
    return new Promise((resolve, reject) => {
       db = getDb();
       var myCol = db.collection(empProjColl);
@@ -295,7 +296,7 @@ function listEmployeeInProj(projId) {
          },
          {
             $match: {
-               "esaId": projId
+               "esaId": esaId
             }
          },
          {
@@ -331,8 +332,70 @@ function listEmployeeInProj(projId) {
 }
 
 
+function getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear) {
+   return new Promise((resolve, reject) => {
+      console.log(dateFormat(new Date(revenueYear, firstMonth, monthFirstDate), "ddmmyyyy"))
+      var revenueStart = new Date(revenueYear, 1, monthFirstDate);
+      console.log(dateFormat(new Date(revenueYear, lastMonth + 1, monthLastDate), "ddmmyyyy"));
+      var revenueEnd = new Date(revenueYear, 12, monthLastDate);
+      db = getDb();
+      db.collection(empLeaveColl).aggregate([
+         {
+            $project: {
+               "_id": 1,
+               "empEsaLink": 3,
+               "ctsEmpId": 4,
+               "startDate": 5,
+               "endDate": 6,
+               "days": 7,
+               "reason": 8,
+               "leaveStart": {
+                  $dateFromString: {
+                     dateString: "$startDate",
+                     format: "%d%m%Y"
+                  }
+               },
+               "leaveEnd": {
+                  $dateFromString: {
+                     dateString: "$endDate",
+                     format: "%d%m%Y"
+                  }
+               }
+            }
+         },
+         {
+            $match: {
+               "empEsaLink": empEsaLink,
+               "ctsEmpId": ctsEmpId,
+               "leaveStart": { "$gte": revenueStart },
+               "leaveEnd": { "$lte": revenueEnd }
+            }
+         },
+         {
+            $project: {
+               "_id": "$_id",
+               "empEsaLink": "$empEsaLink",
+               "ctsEmpId": "$ctsEmpId",
+               "startDate": "$startDate",
+               "endDate": "$endDate",
+               "days": "$days",
+               "reason": "$reason"
+            }
+         }
+      ]).toArray((err, leaveArr) => {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(leaveArr);
+         }
+      });
+   });
+}
+
+
 /* get projection data for specific employee in selected project */
 function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
+   console.log(empEsaLink + " - " + ctsEmpId + " - " + revenueYear);
    return new Promise((resolve, reject) => {
       db = getDb();
       db.collection(empProjColl).aggregate([
@@ -445,47 +508,38 @@ function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
                }
             }
          }
-      ]).toArray(function (err, empDtl) {
-         return new Promise((resolve, _reject) => {
+      ]).toArray((err, empDtl) => {
+         if (empDtl.length === 1) {
             calcEmpRevenue(empDtl, revenueYear).then((revenueDetail) => {
-               resolve(revenueDetail);
+               empDtl.push({ "revenue": revenueDetail });
+               if (err) {
+                  reject(err);
+               } else {
+                  resolve(empDtl);
+               }
             });
-         }).then((revenueDetail) => {
-            empDtl.push({ "revenue": revenueDetail });
-            if (err) {
-               reject(err);
-            } else {
-               resolve(empDtl);
-            }
-         });
+         } else {
+            reject("")
+         }
       });
    });
 }
 
 
-function getProjectRevenue(projJsonObj, revenueYear) {
-   return new Promise((resolve, reject) => {
-      let monthRevenueArr = [];
-      listEmployeeInProj(projJsonObj[0].esaId).then((empInProj) => {
-         let cmiRevenue = 0;
-         let monthRevenue = 0;
-         getEmployeeProjection(employee.empEsaLink, employee.ctsEmpId, revenueYear).then((empDtl) => {
-            for (let monthIndex = firstMonth; monthIndex <= lastMonth; monthIndex++) {
-               let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
-               empInProj.forEach((employee) => {
-                  employee[0].revenue.forEach((monthRev) => {
-                     if (revenueMonth === monthRev.month) {
-                        cmiRevenue += parseFloat(montRev.cmiRevenue);
-                        monthRevenue += parseFloat(monthRev.monthRevenue);
-                     }
-                  });
-               });
-            }
-            let monthRevenueObj = { 'month': revenueMonth, 'cmiRevenue': cmiRevenue, 'monthRevenue': monthRevenue };
-            monthRevenueArr.push(monthRevenueObj);
+function getProjectRevenue(esaId, revenueYear) {
+   let empDtlArr = [];
+   return new Promise((resolve, _reject) => {
+      listEmployeeInProj(esaId).then((empInProj) => {
+         empInProj.forEach((employee) => {
+            getEmployeeProjection(employee.empEsaLink, employee.ctsEmpId, revenueYear).then((empDtl) => {
+               console.log(empDtl);
+               empDtlArr.push(empDtl);
+            });
          });
-         resolve(monthRevenueArr);
       });
+      Promise.all(empDtlArr).then((allEmpDtl) => {
+         resolve(allEmpDtl);
+      })
    });
 }
 
@@ -651,7 +705,7 @@ function listAllEmployees() {
 
 
 //get projection data for all projects
-function listActiveEmployeeInProj(projId) {
+function listActiveEmployeeInProj(esaId) {
    return new Promise((resolve, reject) => {
       db = getDb();
       var myCol = db.collection(empProjColl);
@@ -691,7 +745,7 @@ function listActiveEmployeeInProj(projId) {
          },
          {
             $match: {
-               "esaId": projId,
+               "esaId": esaId,
                "projectionActive": "1"
             }
          },
@@ -739,7 +793,7 @@ function listActiveEmployeeInProj(projId) {
 
 
 //get projection data for all projects
-function listInactiveEmployeeInProj(projId) {
+function listInactiveEmployeeInProj(esaId) {
    return new Promise((resolve, reject) => {
       db = getDb();
       var myCol = db.collection(empProjColl);
@@ -779,7 +833,7 @@ function listInactiveEmployeeInProj(projId) {
          },
          {
             $match: {
-               "esaId": projId,
+               "esaId": esaId,
                "projectionActive": "0"
             }
          },
@@ -1014,5 +1068,7 @@ module.exports = {
    listActiveEmployeeInProj,
    listInactiveEmployeeInProj,
    listAllActiveEmployee,
-   listAllInactiveEmployee
+   listAllInactiveEmployee,
+   getProjectRevenue,
+   getEmployeeLeave
 };

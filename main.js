@@ -10,7 +10,32 @@ libApp.use(bp.json());
 libApp.use(cors());
 
 
-//Get all active employee projections of specific project
+/* get project wise trend */
+libApp.get("/getEmpLeave", (req, res) => {
+    let empEsaLink = req.body.empEsaLink;
+    let ctsEmpId = req.body.ctsEmpId;
+    let revenueYear = req.body.revenueYear;
+    dbObj.getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear).then((empLeave) => {
+        res.json(empLeave);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        res.json(errobj);
+    });
+});
+
+/* get project wise trend */
+libApp.get("/projWiseTrend", (req, res) => {
+    var esaId = req.body.esaId;
+    var revenueYear = req.body.revenueYear;
+    dbObj.getProjectRevenue(esaId, revenueYear).then((projectRevenue) => {
+        res.json(projectRevenue);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        res.json(errobj);
+    });
+});
+
+/* list projects */
 libApp.get("/listAllProj", (_req, res) => {
     dbObj.listAllProjects().then((projectList) => {
         res.json(projectList);
@@ -20,10 +45,10 @@ libApp.get("/listAllProj", (_req, res) => {
     });
 });
 
-//Get all active employee projections of specific project
+/* list employees in project */
 libApp.get("/listEmpInProj", (req, res) => {
-    var projId = req.body.projId;
-    dbObj.listEmployeeInProj(projId).then((allEmpInProj) => {
+    var esaId = req.body.esaId;
+    dbObj.listEmployeeInProj(esaId).then((allEmpInProj) => {
         res.json(allEmpInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -86,8 +111,8 @@ libApp.get("/listAllInactEmp", (_req, res) => {
 
 //list all active projection for associates in a specific project
 libApp.get("/listActEmpInProj", (req, res) => {
-    var projId = req.body.projId;
-    dbObj.listActiveEmployeeInProj(projId).then((actEmpInProj) => {
+    var esaId = req.body.esaId;
+    dbObj.listActiveEmployeeInProj(esaId).then((actEmpInProj) => {
         res.json(actEmpInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -97,8 +122,8 @@ libApp.get("/listActEmpInProj", (req, res) => {
 
 //list all inactive projection associates in a specific project
 libApp.get("/listInactEmpInProj", (req, res) => {
-    var projId = req.body.projId;
-    dbObj.listInactiveEmployeeInProj(projId).then((inactInProj) => {
+    var esaId = req.body.esaId;
+    dbObj.listInactiveEmployeeInProj(esaId).then((inactInProj) => {
         res.json(inactInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

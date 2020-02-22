@@ -1,5 +1,6 @@
 const express = require('express');
 const dbObj = require('./database');
+const empObj = require('./employee');
 const libApp = express();
 const port = 5454;
 let bp = require('body-parser');
@@ -15,7 +16,7 @@ libApp.get("/getEmpLeave", (req, res) => {
     let empEsaLink = req.body.empEsaLink;
     let ctsEmpId = req.body.ctsEmpId;
     let revenueYear = req.body.revenueYear;
-    dbObj.getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear).then((empLeave) => {
+    empObj.getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear).then((empLeave) => {
         res.json(empLeave);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

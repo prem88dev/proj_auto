@@ -10,6 +10,7 @@ const esaProjColl = "esa_proj";
 const locLeaveColl = "loc_holiday";
 const empMonthRevColl = "emp_month_revenue";
 const empLeaveColl = "emp_leave";
+const empBuffer = "emp_buffer";
 const lastMonth = 11;
 const firstMonth = 0;
 const monthFirstDate = 1;
@@ -169,7 +170,7 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
             revenueAmount = printf("%10.2f", ((revenueDays - bufferDays) * billHourPerDay * billRatePerHr) / 100);
             monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
             updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
-               /*const { matchedCount, modifiedCount, upsertedCount } = result;
+               const { matchedCount, modifiedCount, upsertedCount } = result;
                console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);
                if (matchedCount === 0 && upsertedCount >= 1) {
                   if (upsertedCount === 1) {
@@ -185,7 +186,7 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
                   }
                } else {
                   console.log("Nothing matches !");
-               }*/
+               }
             });
             resolve(monthRevenueObj);
          });
@@ -194,11 +195,25 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
 }
 
 
-/* calculate revenue */
+/*
+   listEmployeeInProj:
+      to get list of employees in a project
+
+   pre-requisite:
+      requires getEmployeeProjection to be called first
+
+   params:
+      empJsonObj - employee detail object
+      revenueYear - year for which leaves are required
+
+   returns an array with yearly revenue details
+*/
 function calcEmpRevenue(empJsonObj, revenueYear) {
    let monthRevArr = [];
    return new Promise((resolve, reject) => {
-      if (!empJsonObj[0].sowStartDate || isNaN(empJsonObj[0].sowStartDate)) {
+      if (!empJsonObj || isNaN(empJsonObj)) {
+         reject ("Employee object is not provided");
+      } else if (!empJsonObj[0].sowStartDate || isNaN(empJsonObj[0].sowStartDate)) {
          reject("SOW start date is not defined for selected employee");
       } else if (!empJsonObj[0].sowEndDate || isNaN(empJsonObj[0].sowEndDate)) {
          reject("SOW end date is not defined for selected employee");
@@ -206,6 +221,8 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
          reject("Billing hour per day is not defined for selected employee");
       } else if (!empJsonObj[0].wrkHrPerDay || isNaN(empJsonObj[0].wrkHrPerDay)) {
          reject("Billing rate is not defined for selected employee");
+      } else if (!revenueYear || isNaN(revenueYear)) {
+         reject ("Revenue year is not provided")
       }
       let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "DDMMYYYY", true));
       let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "DDMMYYYY", true));
@@ -266,7 +283,20 @@ function listAllProjects() {
 }
 
 
-/* get employee list for selectd project */
+/*
+   listEmployeeInProj:
+      to get list of employees in a project
+
+   params:
+      empEsaLink - linker between employee and project
+      ctsEmpId - employee id
+      revenueYear - year for which leaves are required
+      personal - boolean flag
+         if true, will fetch personal leaves
+         else, will fetch location holidays
+
+   returns an array with leave details
+*/
 function listEmployeeInProj(esaId) {
    return new Promise((resolve, reject) => {
       db = getDb();
@@ -331,199 +361,6 @@ function listEmployeeInProj(esaId) {
    });
 }
 
-
-function getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear) {
-   return new Promise((resolve, reject) => {
-      console.log(dateFormat(new Date(revenueYear, firstMonth, monthFirstDate), "ddmmyyyy"))
-      var revenueStart = new Date(revenueYear, 1, monthFirstDate);
-      console.log(dateFormat(new Date(revenueYear, lastMonth + 1, monthLastDate), "ddmmyyyy"));
-      var revenueEnd = new Date(revenueYear, 12, monthLastDate);
-      db = getDb();
-      db.collection(empLeaveColl).aggregate([
-         {
-            $project: {
-               "_id": 1,
-               "empEsaLink": 3,
-               "ctsEmpId": 4,
-               "startDate": 5,
-               "endDate": 6,
-               "days": 7,
-               "reason": 8,
-               "leaveStart": {
-                  $dateFromString: {
-                     dateString: "$startDate",
-                     format: "%d%m%Y"
-                  }
-               },
-               "leaveEnd": {
-                  $dateFromString: {
-                     dateString: "$endDate",
-                     format: "%d%m%Y"
-                  }
-               }
-            }
-         },
-         {
-            $match: {
-               "empEsaLink": empEsaLink,
-               "ctsEmpId": ctsEmpId,
-               "leaveStart": { "$gte": revenueStart },
-               "leaveEnd": { "$lte": revenueEnd }
-            }
-         },
-         {
-            $project: {
-               "_id": "$_id",
-               "empEsaLink": "$empEsaLink",
-               "ctsEmpId": "$ctsEmpId",
-               "startDate": "$startDate",
-               "endDate": "$endDate",
-               "days": "$days",
-               "reason": "$reason"
-            }
-         }
-      ]).toArray((err, leaveArr) => {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(leaveArr);
-         }
-      });
-   });
-}
-
-
-/* get projection data for specific employee in selected project */
-function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
-   console.log(empEsaLink + " - " + ctsEmpId + " - " + revenueYear);
-   return new Promise((resolve, reject) => {
-      db = getDb();
-      db.collection(empProjColl).aggregate([
-         {
-            $lookup: {
-               from: "esa_proj",
-               localField: "empEsaLink",
-               foreignField: "empEsaLink",
-               as: "empEsaProj"
-            }
-         },
-         {
-            $unwind: "$empEsaProj"
-         },
-         {
-            $lookup: {
-               from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
-               as: "empEsaLoc"
-            }
-         },
-         {
-            $unwind: "$empEsaLoc"
-         },
-         {
-            $lookup: {
-               from: "emp_leave",
-               localField: "ctsEmpId",
-               foreignField: "ctsEmpId",
-               as: "empEsaLeave"
-            }
-         },
-         {
-            $unwind: "$empEsaLeave"
-         },
-         {
-            $lookup: {
-               from: "emp_buffer",
-               localField: "ctsEmpId",
-               foreignField: "ctsEmpId",
-               as: "empEsaBuffer"
-            }
-         },
-         {
-            $unwind: "$empEsaBuffer"
-         },
-         {
-            $lookup: {
-               from: "loc_holiday",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
-               as: "empLocHoliday"
-            }
-         },
-         {
-            $unwind: "$empLocHoliday"
-         },
-         {
-            $match: {
-               "empEsaLink": empEsaLink,
-               "ctsEmpId": ctsEmpId
-            }
-         },
-         {
-            $group: {
-               "_id": "$_id",
-               "esaId": { "$first": "$empEsaProj.esaId" },
-               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
-               "projName": { "$first": "$projName" },
-               "ctsEmpId": { "$first": "$ctsEmpId" },
-               "empFname": { "$first": "$empFname" },
-               "empMname": { "$first": "$empMname" },
-               "empLname": { "$first": "$empLname" },
-               "lowesUid": { "$first": "$lowesUid" },
-               "deptName": { "$first": "$deptName" },
-               "sowStartDate": { "$first": "$sowStartDate" },
-               "sowEndDate": { "$first": "$sowEndDate" },
-               "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "wrkCity": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
-               "billRatePerHr": { "$first": "$billRatePerHr" },
-               "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": "$projectionActive" },
-               "leaves": {
-                  "$addToSet": {
-                     "_id": "$empEsaLeave._id",
-                     "startDate": "$empEsaLeave.startDate",
-                     "endDate": "$empEsaLeave.endDate",
-                     "days": "$empEsaLeave.days",
-                     "reason": "$empEsaLeave.reason"
-                  }
-               },
-               "buffers": {
-                  "$addToSet": {
-                     "_id": "$empEsaBuffer._id",
-                     "month": "$empEsaBuffer.month",
-                     "days": "$empEsaBuffer.days",
-                     "reason": "$empEsaBuffer.reason"
-                  }
-               },
-               "publicHolidays": {
-                  "$addToSet": {
-                     "_id": "$empLocHoliday._id",
-                     "startDate": "$empLocHoliday.startDate",
-                     "endDate": "$empLocHoliday.endDate",
-                     "days": "$empLocHoliday.days",
-                     "description": "$empLocHoliday.description"
-                  }
-               }
-            }
-         }
-      ]).toArray((err, empDtl) => {
-         if (empDtl.length === 1) {
-            calcEmpRevenue(empDtl, revenueYear).then((revenueDetail) => {
-               empDtl.push({ "revenue": revenueDetail });
-               if (err) {
-                  reject(err);
-               } else {
-                  resolve(empDtl);
-               }
-            });
-         } else {
-            reject("")
-         }
-      });
-   });
-}
 
 
 function getProjectRevenue(esaId, revenueYear) {
@@ -1055,20 +892,16 @@ function listAllInactiveEmployee() {
 }
 
 
-
-
 module.exports = {
    getDb,
    initDb,
    listAllProjects,
    listEmployeeInProj,
-   getEmployeeProjection,
    getAllEmployeeLeaves,
    listAllEmployees,
    listActiveEmployeeInProj,
    listInactiveEmployeeInProj,
    listAllActiveEmployee,
    listAllInactiveEmployee,
-   getProjectRevenue,
-   getEmployeeLeave
+   getProjectRevenue
 };

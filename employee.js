@@ -1,4 +1,9 @@
 const dbObj = require('./database');
+const empLeaveColl = "emp_leave";
+const empBuffer = "emp_buffer";
+const empProjColl = "emp_proj";
+
+
 /*
    getEmployeeLeave:
       this function will return array of either personal
@@ -9,14 +14,13 @@ const dbObj = require('./database');
          empEsaLink - inker between employee and project
          ctsEmpId - employee id
          revenueYear - year for which leaves are required
-            [ 0 => Jan ... 11 => Dec ]
          personal - boolean flag
             if true, will fetch personal leaves
             else, will fetch location holidays
 
       return an arry of leaves for the given revenue year
 */
-function getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear, personal) {
+function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
    return new Promise((resolve, reject) => {
       let revenueStart = new Date(revenueYear, 1, monthFirstDate);
       console.log(revenueStart);
@@ -146,6 +150,76 @@ function getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear, personal) {
       });
    });
 }
+
+
+
+/*
+   getEmployeeLeave:
+      this function will return array of either personal
+      or location leaves based on personal flag
+
+   params:
+      input:
+         empEsaLink - inker between employee and project
+         ctsEmpId - employee id
+         revenueYear - year for which leaves are required
+      return an arry of leaves for the given revenue year
+*/
+function getEmployeeBuffer(empEsaLink, ctsEmpId, revenueYear) {
+   return new Promise((resolve, reject) => {
+      let revenueStart = new Date(revenueYear, 1, monthFirstDate);
+      console.log(revenueStart);
+      let revenueEnd = new Date(revenueYear, 12, monthLastDate);
+      console.log(revenueEnd);
+      db = dbObj.getDb();
+      db.collection(empBuffer).aggregate([
+         {
+            $project: {
+               "_id": 1,
+               "empEsaLink": 3,
+               "ctsEmpId": 4,
+               "month": 5,
+               "days": 6,
+               "reason": 7,
+               "bufferDate": {
+                  $dateFromString: {
+                     dateString: "$month",
+                     format: "01" + "%m%Y"
+                  }
+               }
+            }
+         },
+         {
+            $match: {
+               "empEsaLink": empEsaLink,
+               "ctsEmpId": ctsEmpId,
+               "$and": [
+                  { "bufferDate": { "$gte": revenueStart } },
+                  { "bufferDate": { "$lte": revenueEnd } }
+               ]
+            }
+         },
+         {
+            $project: {
+               "_id": "$_id",
+               "empEsaLink": "$empEsaLink",
+               "ctsEmpId": "$ctsEmpId",
+               "startDate": "$startDate",
+               "endDate": "$endDate",
+               "days": "$days",
+               "reason": "$reason"
+            }
+         }
+      ]).toArray((err, leaveArr) => {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(leaveArr);
+         }
+      });
+   });
+}
+
 
 
 /* get projection data for specific employee in selected project */
@@ -280,7 +354,10 @@ function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
    });
 }
 
+
+
 module.exports = {
-   getEmployeeLeave,
-   getEmployeeProjection  
+   getPersonalLeave,
+   getEmployeeBuffer,
+   getEmployeeProjection
 }

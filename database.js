@@ -2,21 +2,13 @@ const assert = require("assert");
 const dateTime = require("date-and-time");
 const dateFormat = require("dateformat");
 const printf = require('printf');
-var MongoClient = require('mongodb').MongoClient;
-
 const database = "invoicesdb";
-const empProjColl = "emp_proj";
-const esaProjColl = "esa_proj";
-const locLeaveColl = "loc_holiday";
-const empMonthRevColl = "emp_month_revenue";
-const empLeaveColl = "emp_leave";
-const empBuffer = "emp_buffer";
 const lastMonth = 11;
 const firstMonth = 0;
 const monthFirstDate = 1;
 const monthLastDate = 0;
 
-
+var MongoClient = require('mongodb').MongoClient;
 var dbInstance = null;
 
 /* initialize DB connection */
@@ -34,7 +26,7 @@ function initDb(callback) {
             throw err;
          }
          db = client.db(database);
-         console.log("Connected to database:" + database);
+         console.log("Connected to database: " + database);
          dbInstance = db;
          return callback();
       }

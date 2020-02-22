@@ -1,6 +1,7 @@
 const express = require('express');
 const dbObj = require('./database');
 const empObj = require('./employee');
+const locObj = require('./location');
 const libApp = express();
 const port = 5454;
 let bp = require('body-parser');
@@ -16,13 +17,28 @@ libApp.get("/getEmpLeave", (req, res) => {
     let empEsaLink = req.body.empEsaLink;
     let ctsEmpId = req.body.ctsEmpId;
     let revenueYear = req.body.revenueYear;
-    empObj.getEmployeeLeave(empEsaLink, ctsEmpId, revenueYear).then((empLeave) => {
+    empObj.getPersonalLeave(empEsaLink, ctsEmpId, revenueYear).then((empLeave) => {
         res.json(empLeave);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         res.json(errobj);
     });
 });
+
+
+/* get project wise trend */
+libApp.get("/getLocHoliday", (req, res) => {
+    let wrkCity = req.body.wrkCity;
+    let revenueYear = req.body.revenueYear;
+    let monthIndex = req.body.monthIndex;
+    locObj.getLocationLeave(wrkCity, revenueYear, monthIndex).then((locationLeave) => {
+        res.json(locationLeave);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        res.json(errobj);
+    });
+});
+
 
 /* get project wise trend */
 libApp.get("/projWiseTrend", (req, res) => {

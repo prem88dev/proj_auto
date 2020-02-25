@@ -13,12 +13,12 @@ libApp.use(cors());
 
 
 /* get project wise trend */
-libApp.get("/getEmpLeave", (req, res) => {
+libApp.get("/getLeave", (req, res) => {
     let empEsaLink = req.body.empEsaLink;
     let ctsEmpId = req.body.ctsEmpId;
     let revenueYear = req.body.revenueYear;
-    empObj.getPersonalLeave(empEsaLink, ctsEmpId, revenueYear).then((empLeave) => {
-        res.json(empLeave);
+    empObj.getPersonalLeave(empEsaLink, ctsEmpId, revenueYear).then((leaves) => {
+        res.json(leaves);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         res.json(errobj);
@@ -27,18 +27,32 @@ libApp.get("/getEmpLeave", (req, res) => {
 
 
 /* get project wise trend */
-libApp.get("/getLocHoliday", (req, res) => {
-    let wrkCity = req.body.wrkCity;
+libApp.get("/getBuffer", (req, res) => {
+    let empEsaLink = req.body.empEsaLink;
+    let ctsEmpId = req.body.ctsEmpId;
     let revenueYear = req.body.revenueYear;
     let monthIndex = req.body.monthIndex;
-    locObj.getLocationLeave(wrkCity, revenueYear, monthIndex).then((locationLeave) => {
-        res.json(locationLeave);
+    empObj.getEmployeeBuffer(empEsaLink, ctsEmpId, revenueYear, monthIndex).then((buffers) => {
+        res.json(buffers);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         res.json(errobj);
     });
 });
 
+
+/* get project wise trend */
+libApp.get("/getLocLeave", (req, res) => {
+    let wrkCity = req.body.wrkCity;
+    let revenueYear = req.body.revenueYear;
+    let monthIndex = req.body.monthIndex;
+    locObj.getLocationLeave(wrkCity, revenueYear, monthIndex).then((locLeaves) => {
+        res.json(locLeaves);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        res.json(errobj);
+    });
+});
 
 /* get project wise trend */
 libApp.get("/projWiseTrend", (req, res) => {
@@ -78,7 +92,7 @@ libApp.get("/getEmpDtl", (req, res) => {
     var empEsaLink = req.body.empEsaLink;
     var ctsEmpId = req.body.ctsEmpId;
     var revenueYear = req.body.revenueYear;
-    dbObj.getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear).then((empDtl) => {
+    empObj.getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear).then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

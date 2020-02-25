@@ -61,72 +61,10 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
             $match: {
                "empEsaLink": empEsaLink,
                "ctsEmpId": ctsEmpId,
-               /*
-                  consider a sample year 2018 with
-                  revenue start date: 01-Jan-2018 and
-                  revenue end date: 31-Dec-2018
-               */
                "$or": [
-                  {
-                     /* 
-                        leave starts on or ahead of 01-Jan-2018 and ends on or after 31-Dec-2018
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+ 
-                           |  03-Dec-2017  |  03-Mar-2019 ==> highly impossible
-                           |  03-Dec-2017  |  31-Dec-2018  |
-                           |  01-Jan-2018  |  03-Mar-2019  |
-                           |  01-Jan-2018  |  31-Dec-2018  |
-                           +===============+===============+
-                     */
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     /*
-                        leave starts on or ahead of 01-Jan-2018 (can be like, 04-Sep-2016 or 31-Dec-2017 or 01-Jan-2018),
-                        but ends within revenue year (i.e., between 01-Jan-2018 and 31-Dec-2018).
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+
-                           |  03-Dec-2017  |  03-Mar-2018  |
-                           |  01-Jan-2018  |  03-Mar-2018  |
-                           +===============+===============+
-                     */
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     /*
-                        leave starts within revenue year (should be within 01-Jan-2018 to 31-Dec-2018),
-                        but ends on of after 31-Dec-2018.
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+ 
-                           |  31-Dec-2018  |  05-Jan-2019  |
-                           |  03-Mar-2018  |  31-Dec-2018  |
-                           +===============+===============+
-                     */
-                     "$and": [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueEnd } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
-                     ]
-                  }
+                  { "leaveStart": { "$gte": revenueStart } },
+                  { "leaveStart": { "$lte": revenueEnd } },
+                  { "leaveEnd": { "$gte": revenueEnd } }
                ]
             }
          },
@@ -165,12 +103,13 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
          revenueYear - year for which leaves are required
       return an arry of leaves for the given revenue year
 */
-function getEmployeeBuffer(empEsaLink, ctsEmpId, revenueYear) {
+function getEmployeeBuffer(empEsaLink, ctsEmpId, revenueYear, monthIndex) {
    return new Promise((resolve, reject) => {
-      let revenueStart = new Date(revenueYear, 1, monthFirstDate);
-      console.log(revenueStart);
-      let revenueEnd = new Date(revenueYear, 12, monthLastDate);
-      console.log(revenueEnd);
+      let leaveYear = parseInt(revenueYear, 10);
+      let startMonth = parseInt(monthIndex, 10);
+      let endMonth = parseInt(monthIndex, 10) + 1;
+      let revenueStart = new Date(leaveYear, startMonth, 1);
+      let revenueEnd = new Date(leaveYear, endMonth, 0);
       db = dbObj.getDb();
       db.collection(empBuffer).aggregate([
          {
@@ -183,17 +122,17 @@ function getEmployeeBuffer(empEsaLink, ctsEmpId, revenueYear) {
                "reason": 7,
                "bufferDate": {
                   $dateFromString: {
-                     dateString: "$month",
-                     format: "01" + "%m%Y"
+                     dateString: { "$concat": ["01", "$month"] },
+                     format: "%d%m%Y"
                   }
                }
             }
          },
          {
             $match: {
-               "empEsaLink": empEsaLink,
-               "ctsEmpId": ctsEmpId,
                "$and": [
+                  { "empEsaLink": { "$eq": empEsaLink } },
+                  { "ctsEmpId": { "$eq": ctsEmpId } },
                   { "bufferDate": { "$gte": revenueStart } },
                   { "bufferDate": { "$lte": revenueEnd } }
                ]
@@ -204,8 +143,8 @@ function getEmployeeBuffer(empEsaLink, ctsEmpId, revenueYear) {
                "_id": "$_id",
                "empEsaLink": "$empEsaLink",
                "ctsEmpId": "$ctsEmpId",
-               "startDate": "$startDate",
-               "endDate": "$endDate",
+               "month": "$month",
+               "bufferDate": "$bufferDate",
                "days": "$days",
                "reason": "$reason"
             }
@@ -339,7 +278,7 @@ function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
          }
       ]).toArray((err, empDtl) => {
          if (empDtl.length === 1) {
-            calcEmpRevenue(empDtl, revenueYear).then((revenueDetail) => {
+            dbObj.calcEmpRevenue(empDtl, revenueYear).then((revenueDetail) => {
                empDtl.push({ "revenue": revenueDetail });
                if (err) {
                   reject(err);

@@ -7,6 +7,8 @@ const lastMonth = 11;
 const firstMonth = 0;
 const monthFirstDate = 1;
 const monthLastDate = 0;
+const esaProjColl = "esa_proj";
+const empProjColl = "emp_proj";
 
 var MongoClient = require('mongodb').MongoClient;
 var dbInstance = null;
@@ -204,7 +206,7 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
    let monthRevArr = [];
    return new Promise((resolve, reject) => {
       if (!empJsonObj || isNaN(empJsonObj)) {
-         reject ("Employee object is not provided");
+         reject("Employee object is not provided");
       } else if (!empJsonObj[0].sowStartDate || isNaN(empJsonObj[0].sowStartDate)) {
          reject("SOW start date is not defined for selected employee");
       } else if (!empJsonObj[0].sowEndDate || isNaN(empJsonObj[0].sowEndDate)) {
@@ -214,7 +216,7 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
       } else if (!empJsonObj[0].wrkHrPerDay || isNaN(empJsonObj[0].wrkHrPerDay)) {
          reject("Billing rate is not defined for selected employee");
       } else if (!revenueYear || isNaN(revenueYear)) {
-         reject ("Revenue year is not provided")
+         reject("Revenue year is not provided")
       }
       let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "DDMMYYYY", true));
       let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "DDMMYYYY", true));
@@ -252,8 +254,7 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
 function listAllProjects() {
    return new Promise((resolve, reject) => {
       db = getDb();
-      let myCol = db.collection(esaProjColl);
-      myCol.aggregate([
+      db.collection(esaProjColl).aggregate([
          {
             $project: {
                "_id": 1,
@@ -895,5 +896,6 @@ module.exports = {
    listInactiveEmployeeInProj,
    listAllActiveEmployee,
    listAllInactiveEmployee,
-   getProjectRevenue
+   getProjectRevenue,
+   calcEmpRevenue
 };

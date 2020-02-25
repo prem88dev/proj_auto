@@ -1,4 +1,4 @@
-const dbObj = require('./database');
+const dbObj = require("./database");
 const dateTime = require("date-and-time");
 const dateFormat = require("dateformat");
 const locLeaveColl = "loc_holiday";
@@ -23,11 +23,12 @@ const monthLastDate = 0;
 */
 function getLocationLeave(wrkCity, revenueYear, monthIndex) {
    return new Promise((resolve, reject) => {
-      let revenueStart = new Date(revenueYear, parseInt(monthIndex), 2);
-      console.log(revenueStart);
-      let revenueEnd = new Date(revenueYear, parseInt(monthIndex) + 1, 1);
-      console.log(revenueEnd);
       db = dbObj.getDb();
+      let leaveYear = parseInt(revenueYear, 10);
+      let startMonth = parseInt(monthIndex, 10);
+      let endMonth = parseInt(monthIndex, 10) + 1;
+      let revenueStart = new Date(leaveYear, startMonth, monthFirstDate);
+      let revenueEnd = new Date(leaveYear, endMonth, monthLastDate);
       db.collection(locLeaveColl).aggregate([
          {
             $project: {
@@ -53,67 +54,15 @@ function getLocationLeave(wrkCity, revenueYear, monthIndex) {
          },
          {
             $match: {
-               "wrkCity": wrkCity,
-               /*
-                  consider a sample year 2018 with
-                  revenue start date: 01-Jan-2018 and
-                  revenue end date: 31-Dec-2018
-               */
+               "wrkCity": { "$eq": wrkCity },
                "$or": [
                   {
-                     /* 
-                        leave starts on or ahead of 01-Jan-2018 and ends on or after 31-Dec-2018
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+ 
-                           |  03-Dec-2017  |  03-Mar-2019 ==> highly impossible
-                           |  03-Dec-2017  |  31-Dec-2018  |
-                           |  01-Jan-2018  |  03-Mar-2019  |
-                           |  01-Jan-2018  |  31-Dec-2018  |
-                           +===============+===============+
-                     */
                      "$and": [
                         { "leaveStart": { "$lte": revenueStart } },
                         { "leaveEnd": { "$gte": revenueEnd } }
                      ]
                   },
                   {
-                     /*
-                        leave starts on or ahead of 01-Jan-2018 (can be like, 04-Sep-2016 or 31-Dec-2017 or 01-Jan-2018),
-                        but ends within revenue year (i.e., between 01-Jan-2018 and 31-Dec-2018).
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+
-                           |  03-Dec-2017  |  03-Mar-2018  |
-                           |  01-Jan-2018  |  03-Mar-2018  |
-                           +===============+===============+
-                     */
-                     "$and": [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     /*
-                        leave starts on or ahead of 01-Jan-2018 (can be like, 04-Sep-2016 or 31-Dec-2017 or 01-Jan-2018),
-                        but ends within revenue year (i.e., between 01-Jan-2018 and 31-Dec-2018).
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+
-                           |  03-Dec-2017  |  03-Mar-2018  |
-                           |  01-Jan-2018  |  03-Mar-2018  |
-                           +===============+===============+
-                     */
                      "$and": [
                         { "leaveStart": { "$lte": revenueStart } },
                         { "leaveEnd": { "$gte": revenueStart } },
@@ -121,42 +70,10 @@ function getLocationLeave(wrkCity, revenueYear, monthIndex) {
                      ]
                   },
                   {
-                     /*
-                        leave starts within revenue year (should be within 01-Jan-2018 to 31-Dec-2018),
-                        but ends on of after 31-Dec-2018.
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+ 
-                           |  31-Dec-2018  |  05-Jan-2019  |
-                           |  03-Mar-2018  |  31-Dec-2018  |
-                           +===============+===============+
-                     */
                      "$and": [
                         { "leaveStart": { "$gte": revenueStart } },
                         { "leaveStart": { "$lte": revenueEnd } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     /*
-                        leave starts within revenue year (should be within 01-Jan-2018 to 31-Dec-2018),
-                        but ends on of after 31-Dec-2018.
-
-                        success scneario exclusive to below filter
-                           +===============+===============+
-                           |  leave start  |   leave end   |
-                           |     date      |     date      |
-                           +---------------|---------------+ 
-                           |  31-Dec-2018  |  05-Jan-2019  |
-                           |  03-Mar-2018  |  31-Dec-2018  |
-                           +===============+===============+
-                     */
-                     "$and": [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueEnd } },
+                        { "leaveEnd": { "$gte": revenueStart } },
                         { "leaveEnd": { "$lte": revenueEnd } }
                      ]
                   }
@@ -167,8 +84,8 @@ function getLocationLeave(wrkCity, revenueYear, monthIndex) {
             $project: {
                "_id": "$_id",
                "wrkCity": "$wrkCity",
-               "startDate": "$startDate",
-               "endDate": "$endDate",
+               "startDate": "$leaveStart",
+               "endDate": "$leaveEnd",
                "days": "$days",
                "description": "$description"
             }

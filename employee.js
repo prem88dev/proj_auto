@@ -351,6 +351,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
             $project: {
                "_id": "$_id",
                "month": "$month",
+               "days" : "$days",
                "reason": "$reason"
             }
          }

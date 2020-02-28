@@ -216,7 +216,7 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
       } else if (!empJsonObj[0].wrkHrPerDay || isNaN(empJsonObj[0].wrkHrPerDay)) {
          reject("Billing rate is not defined for selected employee");
       } else if (!revenueYear || isNaN(revenueYear)) {
-         reject("Revenue year is not provided")
+         reject("Revenue year is not provided");
       }
       let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "DDMMYYYY", true));
       let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "DDMMYYYY", true));

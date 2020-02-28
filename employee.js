@@ -276,9 +276,6 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
          {
             $project: {
                "_id": "$_id",
-               "esaId": "$esaId",
-               "empEsaLink": "$empEsaLink",
-               "ctsEmpId": "$ctsEmpId",
                "startDate": "$leaveStart",
                "endDate": "$leaveEnd",
                "reason": "$reason"
@@ -353,8 +350,6 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
          {
             $project: {
                "_id": "$_id",
-               "empEsaLink": "$empEsaLink",
-               "ctsEmpId": "$ctsEmpId",
                "month": "$month",
                "reason": "$reason"
             }

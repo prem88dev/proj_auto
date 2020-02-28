@@ -356,7 +356,6 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
                "empEsaLink": "$empEsaLink",
                "ctsEmpId": "$ctsEmpId",
                "month": "$month",
-               "bufferDate": "$bufferDate",
                "reason": "$reason"
             }
          }

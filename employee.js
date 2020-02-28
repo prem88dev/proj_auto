@@ -278,6 +278,7 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
                "_id": "$_id",
                "startDate": "$leaveStart",
                "endDate": "$leaveEnd",
+               "days": "$days",
                "reason": "$reason"
             }
          }

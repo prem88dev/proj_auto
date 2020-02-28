@@ -1,0 +1,42 @@
+[
+	{
+		"wrkCity": "MRVL",
+		"siteInd": "ONSITE",
+		"cityName": "Mooresville"
+	},
+	{
+		"wrkCity": "BLR",
+		"siteInd": "OFFSHORE",
+		"cityName": "Bangalore"
+	},
+	{
+		"wrkCity": "CBE",
+		"siteInd": "OFFSHORE",
+		"cityName": "Coimbatore"
+	},
+	{
+		"wrkCity": "CHN",
+		"siteInd": "OFFSHORE",
+		"cityName": "Chennai"
+	},
+	{
+		"wrkCity": "HYD",
+		"siteInd": "OFFSHORE",
+		"cityName": "Hyderabad"
+	},
+	{
+		"wrkCity": "KLK",
+		"siteInd": "OFFSHORE",
+		"cityName": "Calcutta"
+	},
+	{
+		"wrkCity": "KOC",
+		"siteInd": "OFFSHORE",
+		"cityName": "Cochin"
+	},
+	{
+		"wrkCity": "CSCB",
+		"siteInd": "OFFSHORE",
+		"cityName": "Client location - Bangalore"
+	}
+]

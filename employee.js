@@ -1,35 +1,10 @@
 const dbObj = require('./database');
-const commObj = require('./common');
+const locObj = require('./location');
+const commObj = require('./utility');
+const revObj = require('./revenue');
 const empLeaveColl = "emp_leave";
 const empBuffer = "emp_buffer";
 const empProjColl = "emp_proj";
-const locLeaveColl = "loc_holiday";
-
-
-function computeWeekDaysInLeave(leaveArr) {
-   let totalDays = 0;
-   return new Promise(async (resolve, _reject) => {
-      await leaveArr.forEach((leave) => {
-         commObj.getDaysBetween(leave.startDate, leave.endDate, true).then((leaveDays) => {
-            totalDays += leaveDays;
-         });
-      });
-      resolve(totalDays);
-   });
-}
-
-function computeAllDaysInLeave(leaveArr) {
-   let totalDays = 0;
-   return new Promise(async (resolve, _reject) => {
-      await leaveArr.forEach((leave) => {
-         commObj.getDaysBetween(leave.startDate, leave.endDate, false).then((leaveDays) => {
-            totalDays += leaveDays;
-         });
-      });
-      resolve(totalDays);
-   });
-}
-
 
 
 function getBufferCount(empEsaLink, ctsEmpId) {
@@ -79,9 +54,6 @@ function getBufferCount(empEsaLink, ctsEmpId) {
       });
    });
 }
-
-
-
 
 /*
    getPersonalLeave:
@@ -168,11 +140,11 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
          if (err) {
             reject(err);
          } else if (leaveArr.length >= 1) {
-            computeAllDaysInLeave(leaveArr).then((allDaysInLeave) => {
-               computeWeekDaysInLeave(leaveArr).then((workDaysInLeave) => {
+            commObj.computeLeaveDays(leaveArr).then((allDaysInLeave) => {
+               commObj.computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
                   leaveArr.push({ 'totalDays': allDaysInLeave, 'workDays': workDaysInLeave });
+                  resolve(leaveArr);
                });
-               resolve(leaveArr);
             });
          }
          else {
@@ -181,8 +153,6 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
       });
    });
 }
-
-
 
 /*
    getEmployeeLeave:
@@ -256,91 +226,6 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
    });
 }
 
-
-
-function getLocationLeave(wrkCity, revenueYear) {
-   let revenueStart = new Date(revenueYear, 0, 2);
-   revenueStart.setUTCHours(0, 0, 0, 0);
-   let revenueEnd = new Date(revenueYear, 12, 1);
-   revenueEnd.setUTCHours(0, 0, 0, 0);
-   return new Promise((resolve, reject) => {
-      dbObj.getDb().collection(locLeaveColl).aggregate([
-         {
-            $project: {
-               "_id": 1,
-               "wrkCity": 2,
-               "startDate": 3,
-               "endDate": 4,
-               "days": 5,
-               "description": 6,
-               "leaveStart": {
-                  $dateFromString: {
-                     dateString: "$startDate",
-                     format: "%d%m%Y"
-                  }
-               },
-               "leaveEnd": {
-                  $dateFromString: {
-                     dateString: "$endDate",
-                     format: "%d%m%Y"
-                  }
-               }
-            }
-         },
-         {
-            $match: {
-               "wrkCity": { "$eq": wrkCity },
-               "$or": [
-                  {
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     "$and": [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueEnd } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  }
-               ]
-            }
-         },
-         {
-            $project: {
-               "_id": "$_id",
-               "startDate": "$leaveStart",
-               "endDate": "$leaveEnd",
-               "days": "$days",
-               "description": "$description"
-            }
-         }
-      ]).toArray((err, locLeaveArr) => {
-         if (err) {
-            reject(err);
-         } else if (locLeaveArr.length >= 1) {
-            computeAllDaysInLeave(locLeaveArr).then((allDaysInLeave) => {
-               computeWeekDaysInLeave(locLeaveArr).then((workDaysInLeave) => {
-                  locLeaveArr.push({ 'totalDays': allDaysInLeave, 'workDays': workDaysInLeave });
-               });
-               resolve(locLeaveArr);
-            });
-         }
-      });
-   });
-}
-
-
-
 /* get projection data for specific employee in selected project */
 function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
    let revenueStart = new Date(revenueYear, 0, 2);
@@ -410,18 +295,347 @@ function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
                getBuffer(empEsaLink, ctsEmpId, revenueYear).then((bufferArr) => {
                   empDtl.push({ 'buffers': bufferArr });
                   if (empDtl[0].wrkCityCode != "") {
-                     getLocationLeave(empDtl[0].wrkCityCode, revenueYear).then((pubLeaveArr) => {
+                     locObj.getLocationLeave(empDtl[0].wrkCityCode, revenueYear).then((pubLeaveArr) => {
                         empDtl.push({ 'publicHolidays': pubLeaveArr });
-                        resolve(empDtl);
+                        revObj.calcEmpRevenue(empDtl, revenueYear).then((revenueArr) => {
+                           empDtl.push({'revenue': revenueArr});
+                           resolve(empDtl);
+                        });
                      });
                   }
                });
             });
+         } else {
+            resolve("More than one record found !");
          }
       });
    });
 }
 
+/* get projection data for all projects */
+function listAllActiveEmployee() {
+   return new Promise((resolve, reject) => {
+      db = getDb();
+      var myCol = db.collection(empProjColl);
+      myCol.aggregate([
+         {
+            $lookup: {
+               from: "esa_proj",
+               localField: "empEsaLink",
+               foreignField: "empEsaLink",
+               as: "empEsaProj"
+            }
+         },
+         {
+            $unwind: "$empEsaProj"
+         },
+         {
+            $lookup: {
+               from: "wrk_loc",
+               localField: "wrkCity",
+               foreignField: "wrkCity",
+               as: "empEsaLoc"
+            }
+         },
+         {
+            $unwind: "$empEsaLoc"
+         },
+         {
+            $lookup: {
+               from: "emp_leave",
+               localField: "ctsEmpId",
+               foreignField: "ctsEmpId",
+               as: "empEsaLeave"
+            }
+         },
+         {
+            $unwind: "$empEsaLeave"
+         },
+         {
+            $match: {
+               "projectionActive": "1"
+            }
+         },
+         {
+            $group: {
+               "_id": "$_id",
+               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
+               "projName": { "$first": "$projName" },
+               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "empFname": { "$first": "$empFname" },
+               "empMname": { "$first": "$empMname" },
+               "empLname": { "$first": "$empLname" },
+               "lowesUid": { "$first": "$lowesUid" },
+               "deptName": { "$first": "$deptName" },
+               "sowStartDate": { "$first": "$sowStartDate" },
+               "sowEndDate": { "$first": "$sowEndDate" },
+               "foreseenEndDate": { "$first": "$foreseenEndDate" },
+               "wrkCity": { "$first": "$empEsaLoc.cityName" },
+               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
+               "billRatePerHr": { "$first": "$billRatePerHr" },
+               "empEsaLink": { "$first": "$empEsaLink" },
+               "projectionActive": { "$first": "$projectionActive" },
+               "leave": {
+                  "$push": {
+                     "_id": "$empEsaLeave._id",
+                     "month": "$empEsaLeave.month",
+                     "startDate": "$empEsaLeave.startDate",
+                     "endDate": "$empEsaLeave.endDate",
+                     "days": "$empEsaLeave.days"
+                  }
+               }
+            }
+         }
+      ]).toArray(function (err, oneProj) {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(oneProj);
+         }
+      });
+   });
+}
+
+/* get projection data for all projects */
+function listAllInactiveEmployee() {
+   return new Promise((resolve, reject) => {
+      db = getDb();
+      db.collection(empProjColl).aggregate([
+         {
+            $lookup: {
+               from: "esa_proj",
+               localField: "empEsaLink",
+               foreignField: "empEsaLink",
+               as: "empEsaProj"
+            }
+         },
+         {
+            $unwind: "$empEsaProj"
+         },
+         {
+            $lookup: {
+               from: "wrk_loc",
+               localField: "wrkCity",
+               foreignField: "wrkCity",
+               as: "empEsaLoc"
+            }
+         },
+         {
+            $unwind: "$empEsaLoc"
+         },
+         {
+            $lookup: {
+               from: "emp_leave",
+               localField: "ctsEmpId",
+               foreignField: "ctsEmpId",
+               as: "empEsaLeave"
+            }
+         },
+         {
+            $unwind: "$empEsaLeave"
+         },
+         {
+            $match: {
+               "projectionActive": "0"
+            }
+         },
+         {
+            $group: {
+               "_id": "$_id",
+               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
+               "projName": { "$first": "$projName" },
+               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "empFname": { "$first": "$empFname" },
+               "empMname": { "$first": "$empMname" },
+               "empLname": { "$first": "$empLname" },
+               "lowesUid": { "$first": "$lowesUid" },
+               "deptName": { "$first": "$deptName" },
+               "sowStartDate": { "$first": "$sowStartDate" },
+               "sowEndDate": { "$first": "$sowEndDate" },
+               "foreseenEndDate": { "$first": "$foreseenEndDate" },
+               "wrkCity": { "$first": "$empEsaLoc.cityName" },
+               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
+               "billRatePerHr": { "$first": "$billRatePerHr" },
+               "empEsaLink": { "$first": "$empEsaLink" },
+               "projectionActive": { "$first": "$projectionActive" },
+               "leave": {
+                  "$push": {
+                     "_id": "$empEsaLeave._id",
+                     "month": "$empEsaLeave.month",
+                     "startDate": "$empEsaLeave.startDate",
+                     "endDate": "$empEsaLeave.endDate",
+                     "days": "$empEsaLeave.days"
+                  }
+               }
+            }
+         }
+      ]).toArray(function (err, oneProj) {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(oneProj);
+         }
+      });
+   });
+}
+
+/* get projection data for all projects */
+function listAllEmployees() {
+   return new Promise((resolve, reject) => {
+      db = getDb();
+      var myCol = db.collection(empProjColl);
+      myCol.aggregate([
+         {
+            $lookup: {
+               from: "esa_proj",
+               localField: "empEsaLink",
+               foreignField: "empEsaLink",
+               as: "empEsaProj"
+            }
+         },
+         {
+            $unwind: "$empEsaProj"
+         },
+         {
+            $lookup: {
+               from: "wrk_loc",
+               localField: "wrkCity",
+               foreignField: "wrkCity",
+               as: "empEsaLoc"
+            }
+         },
+         {
+            $unwind: "$empEsaLoc"
+         },
+         {
+            $lookup: {
+               from: "emp_leave",
+               localField: "ctsEmpId",
+               foreignField: "ctsEmpId",
+               as: "empEsaLeave"
+            }
+         },
+         {
+            $unwind: "$empEsaLeave"
+         },
+         {
+            $group: {
+               "_id": "$_id",
+               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
+               "projName": { "$first": "$projName" },
+               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "empFname": { "$first": "$empFname" },
+               "empMname": { "$first": "$empMname" },
+               "empLname": { "$first": "$empLname" },
+               "lowesUid": { "$first": "$lowesUid" },
+               "deptName": { "$first": "$deptName" },
+               "sowStartDate": { "$first": "$sowStartDate" },
+               "sowEndDate": { "$first": "$sowEndDate" },
+               "foreseenEndDate": { "$first": "$foreseenEndDate" },
+               "wrkCity": { "$first": "$empEsaLoc.cityName" },
+               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
+               "billRatePerHr": { "$first": "$billRatePerHr" },
+               "empEsaLink": { "$first": "$empEsaLink" },
+               "projectionActive": { "$first": "$projectionActive" },
+               "leave": {
+                  "$push": {
+                     "_id": "$empEsaLeave._id",
+                     "month": "$empEsaLeave.month",
+                     "startDate": "$empEsaLeave.startDate",
+                     "endDate": "$empEsaLeave.endDate",
+                     "days": "$empEsaLeave.days"
+                  }
+               }
+            }
+         }
+      ]).toArray(function (err, oneProj) {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(oneProj);
+         }
+      });
+   });
+}
+
+/* get leave days of all Employees */
+function getAllEmployeeLeaves() {
+   return new Promise((resolve, reject) => {
+      db = getDb();
+      db.collection(empProjColl).aggregate([
+         {
+            $lookup: {
+               from: "esa_proj",
+               localField: "empEsaLink",
+               foreignField: "empEsaLink",
+               as: "empEsaProj"
+            }
+         },
+         {
+            $unwind: "$empEsaProj"
+         },
+         {
+            $lookup: {
+               from: "wrk_loc",
+               localField: "wrkCity",
+               foreignField: "wrkCity",
+               as: "empEsaLoc"
+            }
+         },
+         {
+            $unwind: "$empEsaLoc"
+         },
+         {
+            $lookup: {
+               from: "emp_leave",
+               localField: "ctsEmpId",
+               foreignField: "ctsEmpId",
+               as: "empEsaLeave"
+            }
+         },
+         {
+            $unwind: "$empEsaLeave"
+         },
+         {
+            $group: {
+               "_id": "$_id",
+               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
+               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "empFname": { "$first": "$empFname" },
+               "empMname": { "$first": "$empMname" },
+               "empLname": { "$first": "$empLname" },
+               "lowesUid": { "$first": "$lowesUid" },
+               "deptName": { "$first": "$deptName" },
+               "sowStartDate": { "$first": "$sowStartDate" },
+               "sowEndDate": { "$first": "$sowEndDate" },
+               "foreseenEndDate": { "$first": "$foreseenEndDate" },
+               "wrkCity": { "$first": "$empEsaLoc.cityName" },
+               "empEsaLink": { "$first": "$empEsaLink" },
+               "projectionActive": { "$first": "$projectionActive" },
+               "leave": {
+                  "$push": {
+                     "_id": "$empEsaLeave._id",
+                     "month": "$empEsaLeave.month",
+                     "startDate": "$empEsaLeave.startDate",
+                     "endDate": "$empEsaLeave.endDate",
+                     "days": "$empEsaLeave.days"
+                  }
+               }
+            }
+         }
+      ]).toArray(function (err, oneProj) {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(oneProj);
+         }
+      });
+   });
+}
 
 
 module.exports = {
@@ -429,5 +643,8 @@ module.exports = {
    getBuffer,
    getEmployeeProjection,
    getBufferCount,
-   getLocationLeave
+   listAllActiveEmployee,
+   listAllInactiveEmployee,
+   listAllEmployees,
+   getAllEmployeeLeaves
 }

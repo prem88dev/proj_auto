@@ -24,6 +24,12 @@ libApp.get("/countBuffers", (req, res) => {
     })
 });
 
+libApp.get("/getEmpLeave", (req, res) => {
+    empObj.getPersonalLeave(req.body.empEsaLink, req.body.ctsEmpId, req.body.revenueYear).then((count) => {
+        res.json(count);
+    })
+});
+
 /* get project wise trend */
 libApp.get("/getLeave", (req, res) => {
     let noError = true;

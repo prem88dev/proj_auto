@@ -1,80 +1,35 @@
 const dbObj = require('./database');
+const commObj = require('./common');
 const empLeaveColl = "emp_leave";
 const empBuffer = "emp_buffer";
 const empProjColl = "emp_proj";
-const locLeaveColl="loc_holiday";
+const locLeaveColl = "loc_holiday";
 
 
-
-function getLeaveCount(empEsaLink, ctsEmpId, revenueStart, revenueEnd) {
-   return new Promise((resolve, reject) => {
-      dbObj.getDb().collection(empLeaveColl).aggregate([
-         {
-            $project: {
-               "_id": 1,
-               "empEsaLink": 3,
-               "ctsEmpId": 4,
-               "startDate": 5,
-               "endDate": 6,
-               "days": 7,
-               "leaveStart": {
-                  $dateFromString: {
-                     dateString: "$startDate",
-                     format: "%d%m%Y"
-                  }
-               },
-               "leaveEnd": {
-                  $dateFromString: {
-                     dateString: "$endDate",
-                     format: "%d%m%Y"
-                  }
-               }
-            }
-         },
-         {
-            $match: {
-               "empEsaLink": empEsaLink,
-               "ctsEmpId": ctsEmpId,
-               "$or": [
-                  {
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     "$and": [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueEnd } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  }
-               ]
-            }
-         },
-         {
-            $group: {
-               "_id": null,
-               "totalDays": { $sum: { $toInt: "$days" } }
-            }
-         }
-      ]).toArray((err, totalDays) => {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(totalDays);
-         }
+function computeWeekDaysInLeave(leaveArr) {
+   let totalDays = 0;
+   return new Promise(async (resolve, _reject) => {
+      await leaveArr.forEach((leave) => {
+         commObj.getDaysBetween(leave.startDate, leave.endDate, true).then((leaveDays) => {
+            totalDays += leaveDays;
+         });
       });
+      resolve(totalDays);
    });
 }
+
+function computeAllDaysInLeave(leaveArr) {
+   let totalDays = 0;
+   return new Promise(async (resolve, _reject) => {
+      await leaveArr.forEach((leave) => {
+         commObj.getDaysBetween(leave.startDate, leave.endDate, false).then((leaveDays) => {
+            totalDays += leaveDays;
+         });
+      });
+      resolve(totalDays);
+   });
+}
+
 
 
 function getBufferCount(empEsaLink, ctsEmpId) {
@@ -125,79 +80,6 @@ function getBufferCount(empEsaLink, ctsEmpId) {
    });
 }
 
-
-
-function getLocationLeaveCount(wrkCity, revenueYear) {
-   let revenueStart = new Date(revenueYear, 0, 2);
-   revenueStart.setUTCHours(0, 0, 0, 0);
-   let revenueEnd = new Date(revenueYear, 12, 1);
-   revenueEnd.setUTCHours(0, 0, 0, 0);
-   return new Promise((resolve, reject) => {
-      dbObj.getDb().collection(locLeaveColl).aggregate([
-         {
-            $project: {
-               "_id": 1,
-               "wrkCity": 2,
-               "startDate": 3,
-               "endDate": 4,
-               "days": 5,
-               "leaveStart": {
-                  $dateFromString: {
-                     dateString: "$startDate",
-                     format: "%d%m%Y"
-                  }
-               },
-               "leaveEnd": {
-                  $dateFromString: {
-                     dateString: "$endDate",
-                     format: "%d%m%Y"
-                  }
-               }
-            }
-         },
-         {
-            $match: {
-               "wrkCity": { "$eq": wrkCity },
-               "$or": [
-                  {
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     "$and": [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  },
-                  {
-                     "$and": [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueEnd } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
-                     ]
-                  }
-               ]
-            }
-         },
-         {
-            $group: {
-               "_id": null,
-               "totalDays": { $sum: { $toInt: "$days" } }
-            }
-         }
-      ]).toArray((err, totalDays) => {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(totalDays);
-         }
-      });
-   });
-}
 
 
 
@@ -286,9 +168,9 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
          if (err) {
             reject(err);
          } else if (leaveArr.length >= 1) {
-            getLeaveCount(empEsaLink, ctsEmpId, revenueStart, revenueEnd).then((days) => {
-               days.forEach((day) => {
-                  leaveArr.push(day);
+            computeAllDaysInLeave(leaveArr).then((allDaysInLeave) => {
+               computeWeekDaysInLeave(leaveArr).then((workDaysInLeave) => {
+                  leaveArr.push({ 'totalDays': allDaysInLeave, 'workDays': workDaysInLeave });
                });
                resolve(leaveArr);
             });
@@ -352,7 +234,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
             $project: {
                "_id": "$_id",
                "month": "$month",
-               "days" : "$days",
+               "days": "$days",
                "reason": "$reason"
             }
          }
@@ -360,8 +242,8 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
          if (err) {
             reject(err);
          } else if (buffArr.length >= 1) {
-            getBufferCount(empEsaLink, ctsEmpId, revenueStart, revenueEnd).then((days) => {
-               days.forEach((day) => {
+            getBufferCount(empEsaLink, ctsEmpId, revenueStart, revenueEnd).then(async (days) => {
+               await days.forEach((day) => {
                   buffArr.push(day);
                });
                resolve(buffArr);
@@ -446,9 +328,9 @@ function getLocationLeave(wrkCity, revenueYear) {
          if (err) {
             reject(err);
          } else if (locLeaveArr.length >= 1) {
-            getLocationLeaveCount(wrkCity, revenueYear).then((days) => {
-               days.forEach((day) => {
-                  locLeaveArr.push(day);
+            computeAllDaysInLeave(locLeaveArr).then((allDaysInLeave) => {
+               computeWeekDaysInLeave(locLeaveArr).then((workDaysInLeave) => {
+                  locLeaveArr.push({ 'totalDays': allDaysInLeave, 'workDays': workDaysInLeave });
                });
                resolve(locLeaveArr);
             });
@@ -546,7 +428,6 @@ module.exports = {
    getPersonalLeave,
    getBuffer,
    getEmployeeProjection,
-   getLeaveCount,
    getBufferCount,
    getLocationLeave
 }

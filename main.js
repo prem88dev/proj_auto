@@ -1,6 +1,7 @@
 const express = require('express');
 const dbObj = require('./database');
 const empObj = require('./employee');
+const projObj = require('./project');
 const libApp = express();
 const port = 5454;
 let bp = require('body-parser');
@@ -110,7 +111,7 @@ libApp.get("/projWiseTrend", (req, res) => {
 
 /* list projects */
 libApp.get("/listAllProj", (_req, res) => {
-    dbObj.listAllProjects().then((projectList) => {
+    projObj.listAllProjects().then((projectList) => {
         res.json(projectList);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -121,7 +122,7 @@ libApp.get("/listAllProj", (_req, res) => {
 /* list employees in project */
 libApp.get("/listEmpInProj", (req, res) => {
     var esaId = req.body.esaId;
-    dbObj.listEmployeeInProj(esaId).then((allEmpInProj) => {
+    projObj.listEmployeeInProj(esaId).then((allEmpInProj) => {
         res.json(allEmpInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

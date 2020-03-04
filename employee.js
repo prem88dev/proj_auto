@@ -1,59 +1,13 @@
-const dbObj = require('./database');
-const locObj = require('./location');
-const commObj = require('./utility');
-const revObj = require('./revenue');
+const dbObj = require("./database");
+const locObj = require("./location");
+const commObj = require("./utility");
+const revObj = require("./revenue");
+const ObjectId = require('mongodb').ObjectID;
+const dateFormat = require("dateformat");
 const empLeaveColl = "emp_leave";
 const empBuffer = "emp_buffer";
 const empProjColl = "emp_proj";
 
-
-function getBufferCount(empEsaLink, ctsEmpId) {
-   let revenueStart = new Date(2020, 0, 2);
-   revenueStart.setUTCHours(0, 0, 0, 0);
-   let revenueEnd = new Date(2020, 12, 1);
-   revenueEnd.setUTCHours(0, 0, 0, 0);
-   return new Promise((resolve, reject) => {
-      dbObj.getDb().collection(empBuffer).aggregate([
-         {
-            $project: {
-               "_id": 1,
-               "empEsaLink": 3,
-               "ctsEmpId": 4,
-               "month": 5,
-               "days": 6,
-               "bufferDate": {
-                  $dateFromString: {
-                     dateString: { "$concat": ["01", "$month"] },
-                     format: "%d%m%Y"
-                  }
-               }
-            }
-         },
-         {
-            $match: {
-               "$and": [
-                  { "empEsaLink": empEsaLink },
-                  { "ctsEmpId": ctsEmpId },
-                  { "bufferDate": { "$gte": revenueStart } },
-                  { "bufferDate": { "$lte": revenueEnd } }
-               ]
-            }
-         },
-         {
-            $group: {
-               "_id": null,
-               "totalDays": { $sum: { $toInt: "$days" } }
-            }
-         }
-      ]).toArray((err, totalDays) => {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(totalDays);
-         }
-      });
-   });
-}
 
 /*
    getPersonalLeave:
@@ -68,6 +22,13 @@ function getBufferCount(empEsaLink, ctsEmpId) {
 */
 function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
    return new Promise((resolve, reject) => {
+      if (empEsaLink === undefined || empEsaLink === "") {
+         reject(getPersonalLeave.name + ": Linker ID is not provided");
+      } else if (ctsEmpId === undefined || ctsEmpId === "") {
+         reject(getPersonalLeave.name + ": Employee ID is not provided");
+      } else if (revenueYear === undefined || revenueYear === "") {
+         reject(getPersonalLeave.name + ": Revenue year is not provided");
+      }
       let leaveYear = parseInt(revenueYear, 10);
       let revenueStart = new Date(leaveYear, 0, 2);
       revenueStart.setUTCHours(0, 0, 0, 0);
@@ -138,17 +99,17 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
          }
       ]).toArray((err, leaveArr) => {
          if (err) {
-            reject(err);
+            reject("DB error in " + getPersonalLeave.name + "function: " + err);
          } else if (leaveArr.length >= 1) {
             commObj.computeLeaveDays(leaveArr).then((allDaysInLeave) => {
                commObj.computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
-                  leaveArr.push({ 'totalDays': allDaysInLeave, 'workDays': workDaysInLeave });
+                  leaveArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
                   resolve(leaveArr);
                });
             });
          }
          else {
-            resolve("No leaves between " + dateFormat(revenueStart, "dd-mmm-yyyy") + " and " + dateFormat(revenueEnd, "dd-mmm-yyyy"));
+            resolve(leaveArr);
          }
       });
    });
@@ -168,6 +129,13 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
 */
 function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
    return new Promise((resolve, reject) => {
+      if (empEsaLink === undefined || empEsaLink === "") {
+         reject(getBuffer.name + ": Linker ID is not provided");
+      } else if (ctsEmpId === undefined || ctsEmpId === "") {
+         reject(getBuffer.name + ": Employee ID is not provided");
+      } else if (revenueYear === undefined || revenueYear === "") {
+         reject(getBuffer.name + ": Revenue year is not provided");
+      }
       let bufferYear = parseInt(revenueYear, 10);
       let revenueStart = new Date(bufferYear, 0, 2);
       revenueStart.setUTCHours(0, 0, 0, 0);
@@ -208,31 +176,36 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
                "reason": "$reason"
             }
          }
-      ]).toArray((err, buffArr) => {
+      ]).toArray((err, bufferArr) => {
          if (err) {
-            reject(err);
-         } else if (buffArr.length >= 1) {
-            getBufferCount(empEsaLink, ctsEmpId, revenueStart, revenueEnd).then(async (days) => {
-               await days.forEach((day) => {
-                  buffArr.push(day);
-               });
-               resolve(buffArr);
+            reject("DB error in " + getBuffer.name + "function: " + err);
+         } else if (bufferArr.length >= 1) {
+            commObj.computeBufferDays(bufferArr).then((bufferDays) => {
+               bufferArr.push({ "totalDays": bufferDays });
+               resolve(bufferArr);
             });
          }
          else {
-            resolve("No buffers between " + dateFormat(revenueStart, "dd-mmm-yyyy") + " and " + dateFormat(revenueEnd, "dd-mmm-yyyy"));
+            resolve(bufferArr);
          }
       });
    });
 }
 
 /* get projection data for specific employee in selected project */
-function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
-   let revenueStart = new Date(revenueYear, 0, 2);
-   revenueStart.setUTCHours(0, 0, 0, 0);
-   let revenueEnd = new Date(revenueYear, 12, 1);
-   revenueEnd.setUTCHours(0, 0, 0, 0);
+function getEmployeeProjection(recordId, revenueYear) {
    return new Promise((resolve, reject) => {
+      if (revenueYear === undefined || revenueYear === "") {
+         reject(getEmployeeProjection.name + ": Revenue year is not provided");
+      } else if (recordId === undefined || recordId === "") {
+         reject(getEmployeeProjection.name + ": Record id is not provided");
+      }
+
+      let recordObjId = new ObjectId(recordId);
+      let revenueStart = new Date(revenueYear, 0, 2);
+      revenueStart.setUTCHours(0, 0, 0, 0);
+      let revenueEnd = new Date(revenueYear, 12, 1);
+      revenueEnd.setUTCHours(0, 0, 0, 0);
       db = dbObj.getDb();
       db.collection(empProjColl).aggregate([
          {
@@ -259,17 +232,16 @@ function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
          },
          {
             $match: {
-               "empEsaLink": empEsaLink,
-               "ctsEmpId": ctsEmpId
+               "_id": recordObjId
             }
          },
          {
             $project: {
                "_id": "$_id",
-               "esaId": "$empEsaProj.esaId",
+               "esaId": { $toInt: "$empEsaProj.esaId" },
                "esaDesc": "$empEsaProj.esaDesc",
                "projName": "$projName",
-               "ctsEmpId": "$ctsEmpId",
+               "ctsEmpId": { $toInt: "$ctsEmpId" },
                "empFname": "$empFname",
                "empMname": "$empMname",
                "empLname": "$empLname",
@@ -280,33 +252,49 @@ function getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear) {
                "foreseenEndDate": "$foreseenEndDate",
                "wrkCity": "$empEsaLoc.cityName",
                "wrkCityCode": "$empEsaLoc.wrkCity",
-               "wrkHrPerDay": "$wrkHrPerDay",
-               "billRatePerHr": "$billRatePerHr",
+               "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
+               "billRatePerHr": { $toInt: "$billRatePerHr" },
+               "currency": "$empEsaProj.currency",
                "empEsaLink": "$empEsaLink",
-               "projectionActive": "$projectionActive"
+               "projectionActive": { $toInt: "$projectionActive" }
             }
          }
       ]).toArray((err, empDtl) => {
          if (err) {
-            reject(err);
+            reject("DB error in " + getEmployeeProjection.name + " function: " + err);
          } else if (empDtl.length === 1) {
             getPersonalLeave(empEsaLink, ctsEmpId, revenueYear).then((leaveArr) => {
-               empDtl.push({ 'leaves': leaveArr });
+               empDtl.push({ "leaves": leaveArr });
                getBuffer(empEsaLink, ctsEmpId, revenueYear).then((bufferArr) => {
-                  empDtl.push({ 'buffers': bufferArr });
-                  if (empDtl[0].wrkCityCode != "") {
-                     locObj.getLocationLeave(empDtl[0].wrkCityCode, revenueYear).then((pubLeaveArr) => {
-                        empDtl.push({ 'publicHolidays': pubLeaveArr });
-                        revObj.calcEmpRevenue(empDtl, revenueYear).then((revenueArr) => {
-                           empDtl.push({'revenue': revenueArr});
-                           resolve(empDtl);
-                        });
+                  empDtl.push({ "buffers": bufferArr });
+                  locObj.getLocationLeave(empDtl[0].wrkCityCode, revenueYear).then((pubLeaveArr) => {
+                     empDtl.push({ "publicHolidays": pubLeaveArr });
+                     revObj.calcEmpRevenue(empDtl, revenueYear).then((revenueArr) => {
+                        empDtl.push({ "revenue": revenueArr });
+                        if (leaveArr.length === 0) {
+                           empDtl[1].leaves.push("No leaves between " + dateFormat(revenueStart, "dd-mmm-yyyy") + " and " + dateFormat(revenueEnd, "dd-mmm-yyyy"));
+                        }
+                        if (bufferArr.length === 0) {
+                           empDtl[2].buffers.push("No buffers between " + dateFormat(revenueStart, "dd-mmm-yyyy") + " and " + dateFormat(revenueEnd, "dd-mmm-yyyy"));
+                        }
+                        if (pubLeaveArr.length === 0) {
+                           empDtl[3].publicHolidays.push("No location holidays between " + dateFormat(revenueStart, "dd-mmm-yyyy") + " and " + dateFormat(revenueEnd, "dd-mmm-yyyy"));
+                        }
+                        resolve(empDtl);
+                     }).catch((err) => {
+                        reject(err);
                      });
-                  }
+                  }).catch((err) => {
+                     reject(err);
+                  });
+               }).catch((err) => {
+                  reject(err);
                });
+            }).catch((err) => {
+               reject(err);
             });
          } else {
-            resolve("More than one record found !");
+            reject(getEmployeeProjection.name + ": More than one record found");
          }
       });
    });
@@ -359,10 +347,10 @@ function listAllActiveEmployee() {
          {
             $group: {
                "_id": "$_id",
-               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaId": { "$first": { $toInt: "$empEsaProj.esaId" } },
                "esaDesc": { "$first": "$empEsaProj.esaDesc" },
                "projName": { "$first": "$projName" },
-               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
                "empFname": { "$first": "$empFname" },
                "empMname": { "$first": "$empMname" },
                "empLname": { "$first": "$empLname" },
@@ -372,10 +360,10 @@ function listAllActiveEmployee() {
                "sowEndDate": { "$first": "$sowEndDate" },
                "foreseenEndDate": { "$first": "$foreseenEndDate" },
                "wrkCity": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
-               "billRatePerHr": { "$first": "$billRatePerHr" },
+               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
+               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
                "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": "$projectionActive" },
+               "projectionActive": { "$first": { $toInt: "$projectionActive" } },
                "leave": {
                   "$push": {
                      "_id": "$empEsaLeave._id",
@@ -389,7 +377,7 @@ function listAllActiveEmployee() {
          }
       ]).toArray(function (err, oneProj) {
          if (err) {
-            reject(err);
+            reject("DB error in " + listAllActiveEmployee.name + " function: " + err);
          } else {
             resolve(oneProj);
          }
@@ -443,10 +431,10 @@ function listAllInactiveEmployee() {
          {
             $group: {
                "_id": "$_id",
-               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaId": { "$first": { $toInt: "$empEsaProj.esaId" } },
                "esaDesc": { "$first": "$empEsaProj.esaDesc" },
                "projName": { "$first": "$projName" },
-               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
                "empFname": { "$first": "$empFname" },
                "empMname": { "$first": "$empMname" },
                "empLname": { "$first": "$empLname" },
@@ -456,10 +444,10 @@ function listAllInactiveEmployee() {
                "sowEndDate": { "$first": "$sowEndDate" },
                "foreseenEndDate": { "$first": "$foreseenEndDate" },
                "wrkCity": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
-               "billRatePerHr": { "$first": "$billRatePerHr" },
+               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
+               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
                "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": "$projectionActive" },
+               "projectionActive": { "$first": { $toInt: "$projectionActive" } },
                "leave": {
                   "$push": {
                      "_id": "$empEsaLeave._id",
@@ -473,7 +461,7 @@ function listAllInactiveEmployee() {
          }
       ]).toArray(function (err, oneProj) {
          if (err) {
-            reject(err);
+            reject("DB error in " + listAllInactiveEmployee.name + " function: " + err);
          } else {
             resolve(oneProj);
          }
@@ -553,7 +541,7 @@ function listAllEmployees() {
          }
       ]).toArray(function (err, oneProj) {
          if (err) {
-            reject(err);
+            reject("DB error in " + listAllEmployees.name + " function: " + err);
          } else {
             resolve(oneProj);
          }
@@ -629,7 +617,7 @@ function getAllEmployeeLeaves() {
          }
       ]).toArray(function (err, oneProj) {
          if (err) {
-            reject(err);
+            reject("DB error in " + getAllEmployeeLeaves.name + " function: " + err);
          } else {
             resolve(oneProj);
          }
@@ -642,7 +630,6 @@ module.exports = {
    getPersonalLeave,
    getBuffer,
    getEmployeeProjection,
-   getBufferCount,
    listAllActiveEmployee,
    listAllInactiveEmployee,
    listAllEmployees,

@@ -65,9 +65,20 @@ function computeLeaveDays(leaveArr) {
    });
 }
 
+function computeBufferDays(bufferArr) {
+   let bufferDays = 0;
+   return new Promise(async (resolve, _reject) => {
+      await bufferArr.forEach((buffer) => {
+         bufferDays += parseInt(buffer.days, 10);
+      });
+      resolve(bufferDays);
+   });
+}
+
 
 module.exports = {
    getDaysBetween,
    computeWeekdaysInLeave,
-   computeLeaveDays
+   computeLeaveDays,
+   computeBufferDays
 }

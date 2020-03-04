@@ -32,9 +32,9 @@ function calcMonthLeaves(empLeaveArrObj, monthIndex, revMonthStartDate, revMonth
 
 function calcRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate) {
    return new Promise((resolve, _reject) => {
-      commObj.getDaysBetween(revMonthStartDate, revMonthEndDate, true).then(async (weekDays) => {
-         await calcMonthLeaves(empJsonObj[1].leaves, monthIndex, revMonthStartDate, revMonthEndDate).then(async (personalDays) => {
-            await calcMonthLeaves(empJsonObj[3].publicHolidays, monthIndex, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
+      commObj.getDaysBetween(revMonthStartDate, revMonthEndDate, true).then((weekDays) => {
+         calcMonthLeaves(empJsonObj[1].leaves, monthIndex, revMonthStartDate, revMonthEndDate).then((personalDays) => {
+            calcMonthLeaves(empJsonObj[3].publicHolidays, monthIndex, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
                resolve(weekDays - (personalDays + locationLeaves));
             });
          });
@@ -87,26 +87,13 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
          let monthRevenueObj = "";
          cmiRevenue = printf("%.2f", (revenueDays * billHourPerDay * billRatePerHr) / 100);
          calcMonthBuffers(empJsonObj[2].buffers, monthIndex).then((bufferDays) => {
+            let monthStartDate = new Date(revenueYear, monthIndex, 1);
+            let monthEndDate = new Date(revenueYear, parseInt((monthIndex + 1), 10), 0);
             revenueAmount = printf("%.2f", ((revenueDays - bufferDays) * billHourPerDay * billRatePerHr) / 100);
-            monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
+            monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(monthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
             updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
                const { matchedCount, modifiedCount, upsertedCount } = result;
                console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);
-               if (upsertedCount >= 1) {
-                  if (upsertedCount === 1) {
-                     console.log("Inserted " + upsertedCount + " record");
-                  } else {
-                     console.log("Inserted " + upsertedCount + " records")
-                  }
-               } else if (modifiedCount >= 1) {
-                  if (modifiedCount === 1) {
-                     console.log("Updated " + modifiedCount + " record");
-                  } else {
-                     console.log("Updated " + modifiedCount + " records");
-                  }
-               } else {
-                  console.log("Nothing matches !");
-               }
             });
             resolve(monthRevenueObj);
          });
@@ -120,17 +107,17 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
    let monthRevArr = [];
    return new Promise((resolve, reject) => {
       if (empJsonObj === undefined) {
-         reject("Employee object is not provided");
+         reject(calcEmpRevenue.name + ": Employee object is not provided");
       } else if (revenueYear === undefined) {
-         reject("Revenue year is not provided");
+         reject(calcEmpRevenue.name + ": Revenue year is not provided");
       } else if (empJsonObj[0].sowStartDate === undefined || empJsonObj[0].sowStartDate == "") {
-         reject("SOW start date is not defined for selected employee");
+         reject(calcEmpRevenue.name + ": SOW start date is not defined for selected employee");
       } else if (empJsonObj[0].sowEndDate === undefined || empJsonObj[0].sowEndDate == "") {
-         reject("SOW end date is not defined for selected employee");
+         reject(calcEmpRevenue.name + ": SOW end date is not defined for selected employee");
       } else if (empJsonObj[0].billRatePerHr === undefined || empJsonObj[0].billRatePerHr == "") {
-         reject("Billing hour per day is not defined for selected employee");
+         reject(calcEmpRevenue.name + ": Billing hour per day is not defined for selected employee");
       } else if (empJsonObj[0].wrkHrPerDay === undefined || empJsonObj[0].wrkHrPerDay == "") {
-         reject("Billing rate is not defined for selected employee");
+         reject(calcEmpRevenue.name + ": Billing rate is not defined for selected employee");
       }
 
       let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "DDMMYYYY", true));

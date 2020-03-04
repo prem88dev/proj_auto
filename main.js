@@ -132,10 +132,9 @@ libApp.get("/listEmpInProj", (req, res) => {
 
 //Get all active employee projections of specific project
 libApp.get("/getEmpDtl", (req, res) => {
-    var empEsaLink = req.body.empEsaLink;
-    var ctsEmpId = req.body.ctsEmpId;
-    var revenueYear = req.body.revenueYear;
-    empObj.getEmployeeProjection(empEsaLink, ctsEmpId, revenueYear).then((empDtl) => {
+    let recordId = req.body.recordId;
+    let revenueYear = req.body.revenueYear;
+    empObj.getEmployeeProjection(recordId, revenueYear).then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

@@ -101,7 +101,7 @@ libApp.get("/getLocLeave", (req, res) => {
 libApp.get("/projWiseTrend", (req, res) => {
     var esaId = req.body.esaId;
     var revenueYear = req.body.revenueYear;
-    dbObj.getProjectRevenue(esaId, revenueYear).then((projectRevenue) => {
+    projObj.getProjectRevenue(esaId, revenueYear).then((projectRevenue) => {
         res.json(projectRevenue);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

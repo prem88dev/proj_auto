@@ -263,11 +263,14 @@ function getEmployeeProjection(recordId, revenueYear) {
          if (err) {
             reject("DB error in " + getEmployeeProjection.name + " function: " + err);
          } else if (empDtl.length === 1) {
+            let empEsaLink = empDtl[0].empEsaLink;
+            let ctsEmpId = `${empDtl[0].ctsEmpId}`;
+            let workCityCode = empDtl[0].wrkCityCode;
             getPersonalLeave(empEsaLink, ctsEmpId, revenueYear).then((leaveArr) => {
                empDtl.push({ "leaves": leaveArr });
                getBuffer(empEsaLink, ctsEmpId, revenueYear).then((bufferArr) => {
                   empDtl.push({ "buffers": bufferArr });
-                  locObj.getLocationLeave(empDtl[0].wrkCityCode, revenueYear).then((pubLeaveArr) => {
+                  locObj.getLocationLeave(workCityCode, revenueYear).then((pubLeaveArr) => {
                      empDtl.push({ "publicHolidays": pubLeaveArr });
                      revObj.calcEmpRevenue(empDtl, revenueYear).then((revenueArr) => {
                         empDtl.push({ "revenue": revenueArr });
@@ -281,17 +284,9 @@ function getEmployeeProjection(recordId, revenueYear) {
                            empDtl[3].publicHolidays.push("No location holidays between " + dateFormat(revenueStart, "dd-mmm-yyyy") + " and " + dateFormat(revenueEnd, "dd-mmm-yyyy"));
                         }
                         resolve(empDtl);
-                     }).catch((err) => {
-                        reject(err);
                      });
-                  }).catch((err) => {
-                     reject(err);
                   });
-               }).catch((err) => {
-                  reject(err);
                });
-            }).catch((err) => {
-               reject(err);
             });
          } else {
             reject(getEmployeeProjection.name + ": More than one record found");

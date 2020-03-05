@@ -1,4 +1,5 @@
 const dbObj = require('./database');
+const empObj = require('./employee');
 const empProjColl = "emp_proj";
 const esaProjColl = "esa_proj";
 
@@ -112,15 +113,13 @@ function getProjectRevenue(esaId, revenueYear) {
    return new Promise((resolve, _reject) => {
       listEmployeeInProj(esaId).then((empInProj) => {
          empInProj.forEach((employee) => {
-            getEmployeeProjection(employee.empEsaLink, employee.ctsEmpId, revenueYear).then((empDtl) => {
-               console.log(empDtl);
-               empDtlArr.push(empDtl);
-            });
+            let empObjId = employee._id.toString();
+            empDtlArr.push(empObj.getEmployeeProjection(empObjId, revenueYear));
          });
+         Promise.all(empDtlArr).then((empDtl) => {
+            resolve(empDtl);
+         })
       });
-      Promise.all(empDtlArr).then((allEmpDtl) => {
-         resolve(allEmpDtl);
-      })
    });
 }
 

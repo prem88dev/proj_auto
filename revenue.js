@@ -85,15 +85,15 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
       let cmiRevenue = 0;
       calcRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate).then((revenueDays) => {
          let monthRevenueObj = "";
-         cmiRevenue = printf("%.2f", (revenueDays * billHourPerDay * billRatePerHr) / 100);
+         cmiRevenue = printf("%.2f", (revenueDays * billHourPerDay * billRatePerHr));
          calcMonthBuffers(empJsonObj[2].buffers, monthIndex).then((bufferDays) => {
             let monthStartDate = new Date(revenueYear, monthIndex, 1);
             let monthEndDate = new Date(revenueYear, parseInt((monthIndex + 1), 10), 0);
-            revenueAmount = printf("%.2f", ((revenueDays - bufferDays) * billHourPerDay * billRatePerHr) / 100);
-            monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(monthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
+            revenueAmount = printf("%.2f", ((revenueDays - bufferDays) * billHourPerDay * billRatePerHr));
+            monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(monthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "dd-mmm-yyyy"), 'monthRevenue': parseInt(revenueAmount), 'cmiRevenue': parseInt(cmiRevenue) };
             updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
-               const { matchedCount, modifiedCount, upsertedCount } = result;
-               console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);
+               /*const { matchedCount, modifiedCount, upsertedCount } = result;
+               console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);*/
             });
             resolve(monthRevenueObj);
          });
@@ -141,7 +141,7 @@ function calcEmpRevenue(empJsonObj, revenueYear) {
             monthRevArr.push(getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStartDate, revMonthEndDate));
          } else {
             let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
-            let monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': "0.00", 'cmiRevenue': "0.00" };
+            let monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(revMonthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(revMonthEndDate, "dd-mmm-yyyy"), 'monthRevenue': 0, 'cmiRevenue': 0 };
             monthRevArr.push(monthRevenueObj);
          }
       }

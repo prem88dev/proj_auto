@@ -77,24 +77,24 @@ function listEmployeeInProj(esaId) {
          },
          {
             $project: {
-               "_id": 1,
-               "esaId": 2,
-               "esaDesc": 3,
-               "projName": 4,
-               "ctsEmpId": 5,
-               "empFname": 6,
-               "empMname": 7,
-               "empLname": 8,
-               "lowesUid": 9,
-               "deptName": 10,
-               "sowStartDate": 11,
-               "sowEndDate": 12,
-               "foreseenEndDate": 13,
-               "wrkCity": 14,
-               "wrkHrPerDay": 15,
-               "billRatePerHr": 16,
-               "empEsaLink": 17,
-               "projectionActive": 18
+               "_id": "$_id",
+               "esaId": { $toInt: "$esaId" },
+               "esaDesc": "$esaDesc",
+               "projName": "$projName",
+               "ctsEmpId": "$ctsEmpId",
+               "empFname": "$empFname",
+               "empMname": "$empMname",
+               "empLname": "$empLname",
+               "lowesUid": "$lowesUid",
+               "deptName": "$deptName",
+               "sowStartDate": "$sowStartDate",
+               "sowEndDate": "$sowEndDate",
+               "foreseenEndDate": "$foreseenEndDate",
+               "wrkCity": "$wrkCity",
+               "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
+               "billRatePerHr": { $toInt: "$billRatePerHr" },
+               "empEsaLink": "$empEsaLink",
+               "projectionActive": { $toInt: "$projectionActive" }
             }
          }
       ]).toArray(function (err, allProj) {
@@ -109,16 +109,29 @@ function listEmployeeInProj(esaId) {
 
 
 function getProjectRevenue(esaId, revenueYear) {
-   let empDtlArr = [];
+   let allEmpRevArr = [];
+   let revenueArr = [];
    return new Promise((resolve, _reject) => {
       listEmployeeInProj(esaId).then((empInProj) => {
          empInProj.forEach((employee) => {
             let empObjId = employee._id.toString();
-            empDtlArr.push(empObj.getEmployeeProjection(empObjId, revenueYear));
+            allEmpRevArr.push(empObj.getEmployeeProjection(empObjId, revenueYear));
          });
-         Promise.all(empDtlArr).then((empDtl) => {
-            resolve(empDtl);
-         })
+         Promise.all(allEmpRevArr).then((empDtl) => {
+            empDtl.forEach(async (empDtlObj, empIdx) => {
+               await empDtlObj[4].revenue.forEach((empRev, mnthIdx) => {
+                  let revenue = empRev.monthRevenue;
+                  if (empIdx === 0) {
+                     revenueArr.push({ "revenueMonth": empRev.month, "revenue": revenue });
+                  } else {
+                     let totalRevenue = revenueArr[mnthIdx].revenue;
+                     totalRevenue += revenue;
+                     revenueArr[mnthIdx].revenue = totalRevenue;
+                  }
+               })
+            });
+            resolve(revenueArr);
+         });
       });
    });
 }

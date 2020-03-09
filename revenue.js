@@ -7,8 +7,8 @@ const printf = require('printf');
 const empMonthRevColl = "emp_month_revenue";
 
 function calcMonthLeaves(empLeaveArrObj, monthIndex, revMonthStartDate, revMonthEndDate) {
-   let leaveDays = 0;
    return new Promise((resolve, _reject) => {
+      let leaveDays = 0;
       for (let idx = 0; idx < (empLeaveArrObj.length - 1); idx++) {
          let leave = empLeaveArrObj[idx];
          if (leave.startDate !== undefined && leave.startDate != "" && leave.endDate !== undefined && leave.endDate != "") {
@@ -30,12 +30,12 @@ function calcMonthLeaves(empLeaveArrObj, monthIndex, revMonthStartDate, revMonth
 }
 
 
-function calcRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate) {
+function calcProjectionRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate) {
    return new Promise((resolve, _reject) => {
       commObj.getDaysBetween(revMonthStartDate, revMonthEndDate, true).then((weekDays) => {
-         calcMonthLeaves(empJsonObj[1].leaves, monthIndex, revMonthStartDate, revMonthEndDate).then((personalDays) => {
+         calcMonthBuffers(empJsonObj[2].buffers, monthIndex).then((bufferDays) => {
             calcMonthLeaves(empJsonObj[3].publicHolidays, monthIndex, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
-               resolve(weekDays - (personalDays + locationLeaves));
+               resolve(weekDays - (bufferDays + locationLeaves));
             });
          });
       });
@@ -44,8 +44,8 @@ function calcRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndD
 
 
 function calcMonthBuffers(empBufferArrObj, monthIndex) {
-   let bufferDays = 0;
    return new Promise((resolve, _reject) => {
+      let bufferDays = 0;
       for (let idx = 0; idx < (empBufferArrObj.length - 1); idx++) {
          let buffer = empBufferArrObj[idx];
          let bufferMonth = new Date(dateTime.parse(buffer.month, "MMYYYY", true)).getMonth();
@@ -83,20 +83,18 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
       let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
       let revenueAmount = 0;
       let cmiRevenue = 0;
-      calcRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate).then((revenueDays) => {
+      calcProjectionRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate).then((revenueDays) => {
+         cmiRevenue = ((parseInt(revenueDays, 10) * billHourPerDay * billRatePerHr));
          let monthRevenueObj = "";
-         cmiRevenue = printf("%.2f", (revenueDays * billHourPerDay * billRatePerHr));
-         calcMonthBuffers(empJsonObj[2].buffers, monthIndex).then((bufferDays) => {
-            let monthStartDate = new Date(revenueYear, monthIndex, 1);
-            let monthEndDate = new Date(revenueYear, parseInt((monthIndex + 1), 10), 0);
-            revenueAmount = printf("%.2f", ((revenueDays - bufferDays) * billHourPerDay * billRatePerHr));
-            monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(monthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "dd-mmm-yyyy"), 'monthRevenue': parseInt(revenueAmount), 'cmiRevenue': parseInt(cmiRevenue) };
-            updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
-               /*const { matchedCount, modifiedCount, upsertedCount } = result;
-               console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);*/
-            });
-            resolve(monthRevenueObj);
+         let monthStartDate = new Date(revenueYear, monthIndex, 1);
+         let monthEndDate = new Date(revenueYear, parseInt((monthIndex + 1), 10), 0);
+         revenueAmount = (revenueDays * billHourPerDay * billRatePerHr);
+         monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(monthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
+         updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
+            /*const { matchedCount, modifiedCount, upsertedCount } = result;
+            console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);*/
          });
+         resolve(monthRevenueObj);
       });
    });
 }

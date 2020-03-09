@@ -9,8 +9,8 @@ function getDaysBetween(startDate, endDate, getWeekDays) {
          let fromDate = new Date(startDate);
          let toDate = new Date(endDate);
 
-         fromDate.setUTCHours(0, 0, 0, 0);
-         endDate.setUTCHours(0, 0, 0, 0);
+         fromDate.setHours(0, 0, 0, 0);
+         endDate.setHours(0, 0, 0, 0);
 
          if (fromDate.getTime() === toDate.getTime()) {
             let dayOfWeek = fromDate.getDay();
@@ -21,7 +21,6 @@ function getDaysBetween(startDate, endDate, getWeekDays) {
             } else {
                daysBetween++;
             }
-            resolve(daysBetween);
          } else {
             while (fromDate <= toDate) {
                fromDate.setDate(fromDate.getDate() + 1);
@@ -35,8 +34,8 @@ function getDaysBetween(startDate, endDate, getWeekDays) {
                   daysBetween++;
                }
             }
-            resolve(daysBetween);
          }
+         resolve(daysBetween);
       }
    });
 };

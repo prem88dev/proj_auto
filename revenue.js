@@ -58,42 +58,20 @@ function calcMonthBuffers(empBufferArrObj, monthIndex) {
 }
 
 
-function updEmpMonthRevenue(empJsonObj, monthRevArr) {
-   return new Promise((resolve, _reject) => {
-      let empEsaLink = empJsonObj[0].empEsaLink;
-      let ctsEmpId = empJsonObj[0].ctsEmpId;
-      let month = monthRevArr.month;
-      let startDate = dateFormat((new Date(dateTime.parse(monthRevArr.startDate, "DD-MMM-YYYY", true))), "ddmmyyyy");
-      let endDate = dateFormat((new Date(dateTime.parse(monthRevArr.endDate, "DD-MMM-YYYY", true))), "ddmmyyyy");
-      let cmiRevenue = monthRevArr.cmiRevenue;
-      let monthRevenue = monthRevArr.monthRevenue;
-      let empMonthRevObj = { 'empEsaLink': empEsaLink, 'ctsEmpId': ctsEmpId, 'month': month, 'startDate': startDate, 'endDate': endDate, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
-      db = dbObj.getDb();
-      db.collection(empMonthRevColl).updateOne({ 'empEsaLink': empEsaLink, 'ctsEmpId': ctsEmpId, 'month': month }, { $set: empMonthRevObj }, { upsert: true }).then((result) => {
-         resolve(result);
-      });
-   });
-}
-
-
 function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStartDate, revMonthEndDate) {
    return new Promise((resolve, _reject) => {
       let billRatePerHr = parseInt(empJsonObj[0].billRatePerHr, 10);
       let billHourPerDay = parseInt(empJsonObj[0].wrkHrPerDay, 10);
       let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
+      let monthStartDate = new Date(revenueYear, monthIndex, 1);
+      let monthEndDate = new Date(revenueYear, parseInt((monthIndex + 1), 10), 0);
+      let monthRevenueObj = "";
       let revenueAmount = 0;
       let cmiRevenue = 0;
       calcProjectionRevenueDays(empJsonObj, monthIndex, revMonthStartDate, revMonthEndDate).then((revenueDays) => {
-         cmiRevenue = ((parseInt(revenueDays, 10) * billHourPerDay * billRatePerHr));
-         let monthRevenueObj = "";
-         let monthStartDate = new Date(revenueYear, monthIndex, 1);
-         let monthEndDate = new Date(revenueYear, parseInt((monthIndex + 1), 10), 0);
-         revenueAmount = (revenueDays * billHourPerDay * billRatePerHr);
+         cmiRevenue = ((parseInt(revenueDays, 10)) * billHourPerDay * billRatePerHr);
+         revenueAmount = ((parseInt(revenueDays, 10)) * billHourPerDay * billRatePerHr);
          monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(monthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "dd-mmm-yyyy"), 'monthRevenue': revenueAmount, 'cmiRevenue': cmiRevenue };
-         updEmpMonthRevenue(empJsonObj, monthRevenueObj).then((result) => {
-            /*const { matchedCount, modifiedCount, upsertedCount } = result;
-            console.log("matchedCount: " + matchedCount + "    modifiedCount: " + modifiedCount + "    upsertedCount: " + upsertedCount);*/
-         });
          resolve(monthRevenueObj);
       });
    });

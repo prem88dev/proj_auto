@@ -9,6 +9,145 @@ const empBuffer = "emp_buffer";
 const empProjColl = "emp_proj";
 
 
+function computeWeekdaysInLeave(leaveArr) {
+   let weekdaysInLeave = 0;
+   return new Promise(async (resolve, _reject) => {
+      await leaveArr.forEach((leave) => {
+         commObj.getDaysBetween(leave.startDate, leave.endDate, true).then((weekdays) => {
+            weekdaysInLeave += weekdays;
+         });
+      });
+      resolve(weekdaysInLeave);
+   });
+}
+
+function computeLeaveDays(leaveArr) {
+   let leaveDays = 0;
+   return new Promise(async (resolve, _reject) => {
+      await leaveArr.forEach((leave) => {
+         commObj.getDaysBetween(leave.startDate, leave.endDate, false).then((daysBetween) => {
+            leaveDays += daysBetween;
+         });
+      });
+      resolve(leaveDays);
+   });
+}
+
+function computeBufferDays(bufferArr) {
+   let bufferDays = 0;
+   return new Promise(async (resolve, _reject) => {
+      await bufferArr.forEach((buffer) => {
+         bufferDays += parseInt(buffer.days, 10);
+      });
+      resolve(bufferDays);
+   });
+}
+
+
+function countPersonalDays(empEsaLink, ctsEmpId, leaveStartDate, leaveStopDate) {
+   return new Promise((resolve, reject) => {
+      if (empEsaLink === undefined || empEsaLink === "") {
+         reject(getPersonalLeave.name + ": Linker ID is not provided");
+      } else if (ctsEmpId === undefined || ctsEmpId === "") {
+         reject(getPersonalLeave.name + ": Employee ID is not provided");
+      } else if (leaveStartDate === undefined || leaveStartDate === "") {
+         reject(getPersonalLeave.name + ": Leave start date is not provided");
+      } else if (leaveStopDate === undefined || leaveStopDate === "") {
+         reject(getPersonalLeave.name + ": Leave end date is not provided");
+      } else {
+         let leaveBegin = new Date(leaveStartDate);
+         leaveBegin.setHours(0, 0, 0, 0);
+         let leaveDone = new Date(leaveStopDate);
+         leaveDone.setHours(0, 0, 0, 0);
+         dbObj.getDb().collection(empLeaveColl).aggregate([
+            {
+               $project: {
+                  "_id": 1,
+                  "empEsaLink": 3,
+                  "ctsEmpId": 4,
+                  "startDate": 5,
+                  "endDate": 6,
+                  "leaveStart": {
+                     $dateFromString: {
+                        dateString: "$startDate",
+                        format: "%d%m%Y"
+                     }
+                  },
+                  "leaveEnd": {
+                     $dateFromString: {
+                        dateString: "$endDate",
+                        format: "%d%m%Y"
+                     }
+                  }
+               }
+            },
+            {
+               $match: {
+                  "empEsaLink": empEsaLink,
+                  "ctsEmpId": ctsEmpId,
+                  "$or": [
+                     {
+                        "$and": [
+                           { "leaveStart": { "$lte": leaveBegin } },
+                           { "leaveEnd": { "$gte": leaveDone } }
+                        ]
+                     },
+                     {
+                        "$and": [
+                           { "leaveStart": { "$lte": leaveBegin } },
+                           { "leaveEnd": { "$gte": leaveBegin } },
+                           { "leaveEnd": { "$lte": leaveDone } }
+                        ]
+                     },
+                     {
+                        "$and": [
+                           { "leaveStart": { "$gte": leaveBegin } },
+                           { "leaveStart": { "$lte": leaveDone } },
+                           { "leaveEnd": { "$gte": leaveBegin } },
+                           { "leaveEnd": { "$lte": leaveDone } }
+                        ]
+                     }
+                  ]
+               }
+            },
+            {
+               $project: {
+                  "_id": "$_id",
+                  "ctsEmpId": "$ctsEmpId",
+                  "startDate": "$leaveStart",
+                  "endDate": "$leaveEnd",
+                  "calcDays": {
+                     $switch: {
+                        branches: [
+                           { case: { $eq: ["$leaveStart", "$leaveEnd"] }, "then": 1 },
+                           {
+                              case: { $gte: ["$leaveStart", "$leaveEnd"] }, "then": {
+                                 $add: [{ $subtract: ["$leaveStart", "$leaveEnd"] }, 1]
+                              }
+                           }
+                        ]
+                     }
+                  }
+               }
+            },
+            {
+               $group: {
+                  "_id": "$ctsEmpId",
+                  "totalDays": { "$sum": "$calcDays" }
+               }
+            }
+         ]).toArray((err, leaveArr) => {
+            if (err) {
+               reject("DB error in " + countPersonalDays.name + ": " + err);
+            } else if (leaveArr.length >= 1) {
+               resolve(leaveArr);
+            }
+         });
+      }
+   });
+}
+
+
 /*
    getPersonalLeave:
       returns an array of personal leaves
@@ -93,16 +232,27 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
                "_id": "$_id",
                "startDate": "$leaveStart",
                "endDate": "$leaveEnd",
-               "days": "$days",
+               "days": {
+                  $switch: {
+                     branches: [
+                        { case: { "$eq": ["$leaveStart", "$leaveEnd"] }, "then": 1 },
+                        {
+                           case: { "$gte": ["$leaveStart", "$leaveEnd"] }, "then": {
+                              $add: [{ $subtract: ["$leaveStart", "$leaveEnd"] }, 1]
+                           }
+                        }
+                     ]
+                  }
+               },
                "reason": "$reason"
             }
          }
       ]).toArray((err, leaveArr) => {
          if (err) {
-            reject("DB error in " + getPersonalLeave.name + "function: " + err);
+            reject("DB error in " + getPersonalLeave.name + ": " + err);
          } else if (leaveArr.length >= 1) {
-            commObj.computeLeaveDays(leaveArr).then((allDaysInLeave) => {
-               commObj.computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
+            computeLeaveDays(leaveArr).then((allDaysInLeave) => {
+               computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
                   leaveArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
                   resolve(leaveArr);
                });
@@ -180,7 +330,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
          if (err) {
             reject("DB error in " + getBuffer.name + "function: " + err);
          } else if (bufferArr.length >= 1) {
-            commObj.computeBufferDays(bufferArr).then((bufferDays) => {
+            computeBufferDays(bufferArr).then((bufferDays) => {
                bufferArr.push({ "totalDays": bufferDays });
                resolve(bufferArr);
             });
@@ -222,8 +372,8 @@ function getEmployeeProjection(recordId, revenueYear) {
          {
             $lookup: {
                from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
+               localField: "cityCode",
+               foreignField: "cityCode",
                as: "empEsaLoc"
             }
          },
@@ -250,8 +400,8 @@ function getEmployeeProjection(recordId, revenueYear) {
                "sowStartDate": "$sowStartDate",
                "sowEndDate": "$sowEndDate",
                "foreseenEndDate": "$foreseenEndDate",
-               "wrkCity": "$empEsaLoc.cityName",
-               "wrkCityCode": "$empEsaLoc.wrkCity",
+               "cityName": "$empEsaLoc.cityName",
+               "cityCode": "$empEsaLoc.cityCode",
                "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
                "billRatePerHr": { $toInt: "$billRatePerHr" },
                "currency": "$empEsaProj.currency",
@@ -265,12 +415,12 @@ function getEmployeeProjection(recordId, revenueYear) {
          } else if (empDtl.length === 1) {
             let empEsaLink = empDtl[0].empEsaLink;
             let ctsEmpId = `${empDtl[0].ctsEmpId}`;
-            let workCityCode = empDtl[0].wrkCityCode;
+            let cityCode = empDtl[0].cityCode;
             getPersonalLeave(empEsaLink, ctsEmpId, revenueYear).then((leaveArr) => {
                empDtl.push({ "leaves": leaveArr });
                getBuffer(empEsaLink, ctsEmpId, revenueYear).then((bufferArr) => {
                   empDtl.push({ "buffers": bufferArr });
-                  locObj.getLocationLeave(workCityCode, revenueYear).then((pubLeaveArr) => {
+                  locObj.getLocationLeave(cityCode, revenueYear).then((pubLeaveArr) => {
                      empDtl.push({ "publicHolidays": pubLeaveArr });
                      revObj.calcEmpRevenue(empDtl, revenueYear).then((revenueArr) => {
                         empDtl.push({ "revenue": revenueArr });
@@ -284,11 +434,13 @@ function getEmployeeProjection(recordId, revenueYear) {
                            empDtl[3].publicHolidays.push("No location holidays between " + dateFormat(revenueStart, "dd-mmm-yyyy") + " and " + dateFormat(revenueEnd, "dd-mmm-yyyy"));
                         }
                         resolve(empDtl);
-                     });
-                  });
-               });
-            });
-         } else {
+                     }).catch((calcEmpRevenueErr) => { reject(calcEmpRevenueErr); });
+                  }).catch((getLocationLeaveErr) => { reject(getLocationLeaveErr); });
+               }).catch((getBufferErr) => { reject(getBufferErr); });
+            }).catch((getPersonalLeaveErr) => { reject(getPersonalLeaveErr); });
+         } else if (empDtl.length === 0) {
+            reject(getEmployeeProjection.name + ": No records found")
+         } else if (empDtl.length > 1) {
             reject(getEmployeeProjection.name + ": More than one record found");
          }
       });
@@ -628,5 +780,6 @@ module.exports = {
    listAllActiveEmployee,
    listAllInactiveEmployee,
    listAllEmployees,
-   getAllEmployeeLeaves
+   getAllEmployeeLeaves,
+   countPersonalDays
 }

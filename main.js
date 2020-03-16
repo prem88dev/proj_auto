@@ -1,7 +1,8 @@
-const express = require('express');
-const dbObj = require('./database');
-const empObj = require('./employee');
-const projObj = require('./project');
+const express = require("express");
+const dbObj = require("./database");
+const empObj = require("./employee");
+const projObj = require("./project");
+const revObj = require("./revenue");
 const libApp = express();
 const port = 5454;
 let bp = require('body-parser');
@@ -13,7 +14,11 @@ libApp.use(cors());
 
 
 libApp.get("/countLeaves", (req, res) => {
-    empObj.getLeaveCount(req.body.empEsaLink, req.body.ctsEmpId).then((count) => {
+    let empEsaLink = req.body.empEsaLink;
+    let ctsEmpId = req.body.ctsEmpId;
+    let leaveStartDate = req.body.leaveStartDate;
+    let leaveStopDate = req.body.leaveStopDate;
+    revObj.countPersonalDays(empEsaLink, ctsEmpId, leaveStartDate, leaveStopDate).then((count) => {
         res.json(count);
     })
 });
@@ -87,9 +92,9 @@ libApp.get("/getBuffer", (req, res) => {
 /* get project wise trend */
 libApp.get("/getLocLeave", (req, res) => {
     let wrkCity = req.body.wrkCity;
-    let revenueYear = req.body.revenueYear;
-    let monthIndex = req.body.monthIndex;
-    empObj.getLocationLeave(wrkCity, revenueYear, monthIndex).then((locLeaves) => {
+    let leaveStartDate = req.body.leaveStartDate;
+    let leaveStopDate = req.body.leaveStopDate;
+    revObj.countLocationHolidays(wrkCity, leaveStartDate, leaveStopDate).then((locLeaves) => {
         res.json(locLeaves);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -124,6 +129,19 @@ libApp.get("/listEmpInProj", (req, res) => {
     var esaId = req.body.esaId;
     projObj.listEmployeeInProj(esaId).then((allEmpInProj) => {
         res.json(allEmpInProj);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        res.json(errobj);
+    });
+});
+
+libApp.get("/getLeaveCount", (req, res) => {
+    let empEsaLink = req.body.empEsaLink;
+    let ctsEmpId = req.body.ctsEmpId;
+    let leaveStartDate = req.body.leaveStartDate;
+    let leaveStopDate = req.body.leaveStopDate;
+    revObj.countPersonalDays(empEsaLink, ctsEmpId, leaveStartDate, leaveStopDate).then((empDtl) => {
+        res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         res.json(errobj);

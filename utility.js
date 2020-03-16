@@ -10,7 +10,7 @@ function getDaysBetween(startDate, endDate, getWeekDays) {
          let toDate = new Date(endDate);
 
          fromDate.setHours(0, 0, 0, 0);
-         endDate.setHours(0, 0, 0, 0);
+         toDate.setHours(0, 0, 0, 0);
 
          if (fromDate.getTime() === toDate.getTime()) {
             let dayOfWeek = fromDate.getDay();
@@ -23,7 +23,6 @@ function getDaysBetween(startDate, endDate, getWeekDays) {
             }
          } else {
             while (fromDate <= toDate) {
-               fromDate.setDate(fromDate.getDate() + 1);
                let dayOfWeek = fromDate.getDay();
                /* check if the date is neither a Sunday(0) nor a Saturday(6) */
                if (getWeekDays === true) {
@@ -33,6 +32,7 @@ function getDaysBetween(startDate, endDate, getWeekDays) {
                } else {
                   daysBetween++;
                }
+               fromDate.setDate(fromDate.getDate() + 1);
             }
          }
          resolve(daysBetween);
@@ -40,44 +40,9 @@ function getDaysBetween(startDate, endDate, getWeekDays) {
    });
 };
 
-function computeWeekdaysInLeave(leaveArr) {
-   let weekdaysInLeave = 0;
-   return new Promise(async (resolve, _reject) => {
-      await leaveArr.forEach((leave) => {
-         getDaysBetween(leave.startDate, leave.endDate, true).then((weekdays) => {
-            weekdaysInLeave += weekdays;
-         });
-      });
-      resolve(weekdaysInLeave);
-   });
-}
 
-function computeLeaveDays(leaveArr) {
-   let leaveDays = 0;
-   return new Promise(async (resolve, _reject) => {
-      await leaveArr.forEach((leave) => {
-         getDaysBetween(leave.startDate, leave.endDate, false).then((daysBetween) => {
-            leaveDays += daysBetween;
-         });
-      });
-      resolve(leaveDays);
-   });
-}
-
-function computeBufferDays(bufferArr) {
-   let bufferDays = 0;
-   return new Promise(async (resolve, _reject) => {
-      await bufferArr.forEach((buffer) => {
-         bufferDays += parseInt(buffer.days, 10);
-      });
-      resolve(bufferDays);
-   });
-}
 
 
 module.exports = {
-   getDaysBetween,
-   computeWeekdaysInLeave,
-   computeLeaveDays,
-   computeBufferDays
+   getDaysBetween
 }

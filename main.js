@@ -78,9 +78,7 @@ libApp.get("/getBuffer", (req, res) => {
     let empEsaLink = req.body.empEsaLink;
     let ctsEmpId = req.body.ctsEmpId;
     let revenueYear = req.body.revenueYear;
-    let monthIndex = req.body.monthIndex;
-    let monthBufferIdc = req.body.monthBufferIdc;
-    empObj.getBuffer(empEsaLink, ctsEmpId, revenueYear, monthIndex, monthBufferIdc).then((buffers) => {
+    empObj.getBuffer(empEsaLink, ctsEmpId, revenueYear).then((buffers) => {
         res.json(buffers);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

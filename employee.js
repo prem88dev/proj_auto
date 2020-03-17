@@ -44,109 +44,6 @@ function computeBufferDays(bufferArr) {
 }
 
 
-function countPersonalDays(empEsaLink, ctsEmpId, leaveStartDate, leaveStopDate) {
-   return new Promise((resolve, reject) => {
-      if (empEsaLink === undefined || empEsaLink === "") {
-         reject(getPersonalLeave.name + ": Linker ID is not provided");
-      } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(getPersonalLeave.name + ": Employee ID is not provided");
-      } else if (leaveStartDate === undefined || leaveStartDate === "") {
-         reject(getPersonalLeave.name + ": Leave start date is not provided");
-      } else if (leaveStopDate === undefined || leaveStopDate === "") {
-         reject(getPersonalLeave.name + ": Leave end date is not provided");
-      } else {
-         let leaveBegin = new Date(leaveStartDate);
-         leaveBegin.setHours(0, 0, 0, 0);
-         let leaveDone = new Date(leaveStopDate);
-         leaveDone.setHours(0, 0, 0, 0);
-         dbObj.getDb().collection(empLeaveColl).aggregate([
-            {
-               $project: {
-                  "_id": 1,
-                  "empEsaLink": 3,
-                  "ctsEmpId": 4,
-                  "startDate": 5,
-                  "endDate": 6,
-                  "leaveStart": {
-                     $dateFromString: {
-                        dateString: "$startDate",
-                        format: "%d%m%Y"
-                     }
-                  },
-                  "leaveEnd": {
-                     $dateFromString: {
-                        dateString: "$endDate",
-                        format: "%d%m%Y"
-                     }
-                  }
-               }
-            },
-            {
-               $match: {
-                  "empEsaLink": empEsaLink,
-                  "ctsEmpId": ctsEmpId,
-                  "$or": [
-                     {
-                        "$and": [
-                           { "leaveStart": { "$lte": leaveBegin } },
-                           { "leaveEnd": { "$gte": leaveDone } }
-                        ]
-                     },
-                     {
-                        "$and": [
-                           { "leaveStart": { "$lte": leaveBegin } },
-                           { "leaveEnd": { "$gte": leaveBegin } },
-                           { "leaveEnd": { "$lte": leaveDone } }
-                        ]
-                     },
-                     {
-                        "$and": [
-                           { "leaveStart": { "$gte": leaveBegin } },
-                           { "leaveStart": { "$lte": leaveDone } },
-                           { "leaveEnd": { "$gte": leaveBegin } },
-                           { "leaveEnd": { "$lte": leaveDone } }
-                        ]
-                     }
-                  ]
-               }
-            },
-            {
-               $project: {
-                  "_id": "$_id",
-                  "ctsEmpId": "$ctsEmpId",
-                  "startDate": "$leaveStart",
-                  "endDate": "$leaveEnd",
-                  "calcDays": {
-                     $switch: {
-                        branches: [
-                           { case: { $eq: ["$leaveStart", "$leaveEnd"] }, "then": 1 },
-                           {
-                              case: { $gte: ["$leaveStart", "$leaveEnd"] }, "then": {
-                                 $add: [{ $subtract: ["$leaveStart", "$leaveEnd"] }, 1]
-                              }
-                           }
-                        ]
-                     }
-                  }
-               }
-            },
-            {
-               $group: {
-                  "_id": "$ctsEmpId",
-                  "totalDays": { "$sum": "$calcDays" }
-               }
-            }
-         ]).toArray((err, leaveArr) => {
-            if (err) {
-               reject("DB error in " + countPersonalDays.name + ": " + err);
-            } else if (leaveArr.length >= 1) {
-               resolve(leaveArr);
-            }
-         });
-      }
-   });
-}
-
 
 /*
    getPersonalLeave:
@@ -185,15 +82,19 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
                "days": 7,
                "reason": 8,
                "leaveStart": {
-                  $dateFromString: {
-                     dateString: "$startDate",
-                     format: "%d%m%Y"
+                  $dateFromParts: {
+                     year: { $toInt: { $substr: ["$startDate", 4, -1] } },
+                     month: { $toInt: { $substr: ["$startDate", 2, 2] } },
+                     day: { $toInt: { $substr: ["$startDate", 0, 2] } },
+                     hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                   }
                },
                "leaveEnd": {
-                  $dateFromString: {
-                     dateString: "$endDate",
-                     format: "%d%m%Y"
+                  $dateFromParts: {
+                     year: { $toInt: { $substr: ["$endDate", 4, -1] } },
+                     month: { $toInt: { $substr: ["$endDate", 2, 2] } },
+                     day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                     hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                   }
                }
             }
@@ -287,9 +188,9 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
          reject(getBuffer.name + ": Revenue year is not provided");
       }
       let bufferYear = parseInt(revenueYear, 10);
-      let revenueStart = new Date(bufferYear, 0, 2);
+      let revenueStart = new Date(bufferYear, 0, 1);
       revenueStart.setUTCHours(0, 0, 0, 0);
-      let revenueEnd = new Date(bufferYear, 12, 1);
+      let revenueEnd = new Date(bufferYear, 12, 0);
       revenueEnd.setUTCHours(0, 0, 0, 0);
       dbObj.getDb().collection(empBuffer).aggregate([
          {
@@ -301,9 +202,10 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
                "days": 6,
                "reason": 7,
                "bufferDate": {
-                  $dateFromString: {
-                     dateString: { "$concat": ["01", "$month"] },
-                     format: "%d%m%Y"
+                  $dateFromParts: {
+                     year: { $toInt: { $substr: ["$month", 2, -1] } },
+                     month: { $toInt: { $substr: ["$month", 0, 2] } },
+                     day: 1, hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                   }
                }
             }
@@ -780,6 +682,5 @@ module.exports = {
    listAllActiveEmployee,
    listAllInactiveEmployee,
    listAllEmployees,
-   getAllEmployeeLeaves,
-   countPersonalDays
+   getAllEmployeeLeaves
 }

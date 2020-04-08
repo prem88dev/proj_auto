@@ -60,17 +60,6 @@ function listEmployeeInProj(esaId) {
             $unwind: "$empEsaProj"
          },
          {
-            $lookup: {
-               from: "wrk_loc",
-               localField: "cityCode",
-               foreignField: "cityCode",
-               as: "empEsaLoc"
-            }
-         },
-         {
-            $unwind: "$empEsaLoc"
-         },
-         {
             $match: {
                "esaId": esaId
             }
@@ -78,7 +67,6 @@ function listEmployeeInProj(esaId) {
          {
             $group: {
                "_id": "$_id",
-               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
                "empFname": { "$first": "$empFname" },
                "empMname": { "$first": "$empMname" },
                "empLname": { "$first": "$empLname" }

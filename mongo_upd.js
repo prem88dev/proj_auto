@@ -9,7 +9,7 @@ if (!process.argv[2] || !process.argv[3] || !process.argv[4]) {
    var COLLECTION_NAME = process.argv[4];
    var DB_SERVER = "mongodb://127.0.0.1:27017";
 
-   /* Connect to the db */
+   /* Connect to db */
    MongoClient.connect(DB_SERVER, { useNewUrlParser: true, useUnifiedTopology: true }, (err, client) => {
       if (err) {
          throw err;
@@ -26,7 +26,7 @@ if (!process.argv[2] || !process.argv[3] || !process.argv[4]) {
                   } else {
                      console.log("Data inserted");
                   }
-                  client.close(); /* close the connection to db when you are done with it */
+                  client.close(); /* close connection to db when you are done with it */
                }); /* end of insertMany */
             }
          }); //end of readFile

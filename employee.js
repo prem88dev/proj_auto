@@ -288,27 +288,27 @@ function getEmployeeProjection(recordId, revenueYear) {
             }
          },
          {
-            $project: {
+            $group: {
                "_id": "$_id",
-               "esaId": { $toInt: "$empEsaProj.esaId" },
-               "esaDesc": "$empEsaProj.esaDesc",
-               "projName": "$projName",
-               "ctsEmpId": { $toInt: "$ctsEmpId" },
-               "empFname": "$empFname",
-               "empMname": "$empMname",
-               "empLname": "$empLname",
-               "lowesUid": "$lowesUid",
-               "deptName": "$deptName",
-               "sowStartDate": "$sowStartDate",
-               "sowEndDate": "$sowEndDate",
-               "foreseenEndDate": "$foreseenEndDate",
-               "cityName": "$empEsaLoc.cityName",
-               "cityCode": "$empEsaLoc.cityCode",
-               "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
-               "billRatePerHr": { $toInt: "$billRatePerHr" },
-               "currency": "$empEsaProj.currency",
-               "empEsaLink": "$empEsaLink",
-               "projectionActive": { $toInt: "$projectionActive" }
+               "esaId": { "$first": { $toInt: "$empEsaProj.esaId" } },
+               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
+               "projName": { "$first": "$projName" },
+               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
+               "empFname": { "$first": "$empFname" },
+               "empMname": { "$first": "$empMname" },
+               "empLname": { "$first": "$empLname" },
+               "lowesUid": { "$first": "$lowesUid" },
+               "deptName": { "$first": "$deptName" },
+               "sowStartDate": { "$first": "$sowStartDate" },
+               "sowEndDate": { "$first": "$sowEndDate" },
+               "foreseenEndDate": { "$first": "$foreseenEndDate" },
+               "cityCode": { "$first": "$empEsaLoc.cityCode" },
+               "cityName": { "$first": "$empEsaLoc.cityName" },
+               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
+               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
+               "currency": {"$first": "$empEsaProj.currency"},
+               "empEsaLink": { "$first": "$empEsaLink" },
+               "projectionActive": { "$first": { $toInt: "$projectionActive" } }
             }
          }
       ]).toArray((err, empDtl) => {
@@ -369,8 +369,8 @@ function listAllActiveEmployee() {
          {
             $lookup: {
                from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
+               localField: "cityCode",
+               foreignField: "cityCode",
                as: "empEsaLoc"
             }
          },
@@ -408,9 +408,11 @@ function listAllActiveEmployee() {
                "sowStartDate": { "$first": "$sowStartDate" },
                "sowEndDate": { "$first": "$sowEndDate" },
                "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "wrkCity": { "$first": "$empEsaLoc.cityName" },
+               "cityCode": { "$first": "$empEsaLoc.cityCode" },
+               "cityName": { "$first": "$empEsaLoc.cityName" },
                "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
                "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
+               "currency": {"$first": "$empEsaProj.currency"},
                "empEsaLink": { "$first": "$empEsaLink" },
                "projectionActive": { "$first": { $toInt: "$projectionActive" } },
                "leave": {
@@ -453,8 +455,8 @@ function listAllInactiveEmployee() {
          {
             $lookup: {
                from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
+               localField: "cityCode",
+               foreignField: "cityCode",
                as: "empEsaLoc"
             }
          },
@@ -492,9 +494,11 @@ function listAllInactiveEmployee() {
                "sowStartDate": { "$first": "$sowStartDate" },
                "sowEndDate": { "$first": "$sowEndDate" },
                "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "wrkCity": { "$first": "$empEsaLoc.cityName" },
+               "cityCode": { "$first": "$empEsaLoc.cityCode" },
+               "cityName": { "$first": "$empEsaLoc.cityName" },
                "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
                "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
+               "currency": {"$first": "$empEsaProj.currency"},
                "empEsaLink": { "$first": "$empEsaLink" },
                "projectionActive": { "$first": { $toInt: "$projectionActive" } },
                "leave": {
@@ -538,8 +542,8 @@ function listAllEmployees() {
          {
             $lookup: {
                from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
+               localField: "cityCode",
+               foreignField: "cityCode",
                as: "empEsaLoc"
             }
          },
@@ -560,10 +564,10 @@ function listAllEmployees() {
          {
             $group: {
                "_id": "$_id",
-               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaId": { "$first": { $toInt: "$empEsaProj.esaId" } },
                "esaDesc": { "$first": "$empEsaProj.esaDesc" },
                "projName": { "$first": "$projName" },
-               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
                "empFname": { "$first": "$empFname" },
                "empMname": { "$first": "$empMname" },
                "empLname": { "$first": "$empLname" },
@@ -572,11 +576,13 @@ function listAllEmployees() {
                "sowStartDate": { "$first": "$sowStartDate" },
                "sowEndDate": { "$first": "$sowEndDate" },
                "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "wrkCity": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
-               "billRatePerHr": { "$first": "$billRatePerHr" },
+               "cityCode": { "$first": "$empEsaLoc.cityCode" },
+               "cityName": { "$first": "$empEsaLoc.cityName" },
+               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
+               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
+               "currency": {"$first": "$empEsaProj.currency"},
                "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": "$projectionActive" },
+               "projectionActive": { "$first": { $toInt: "$projectionActive" } },
                "leave": {
                   "$push": {
                      "_id": "$empEsaLeave._id",
@@ -617,8 +623,8 @@ function getAllEmployeeLeaves() {
          {
             $lookup: {
                from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
+               localField: "cityCode",
+               foreignField: "cityCode",
                as: "empEsaLoc"
             }
          },
@@ -639,9 +645,10 @@ function getAllEmployeeLeaves() {
          {
             $group: {
                "_id": "$_id",
-               "esaId": { "$first": "$empEsaProj.esaId" },
+               "esaId": { "$first": { $toInt: "$empEsaProj.esaId" } },
                "esaDesc": { "$first": "$empEsaProj.esaDesc" },
-               "ctsEmpId": { "$first": "$ctsEmpId" },
+               "projName": { "$first": "$projName" },
+               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
                "empFname": { "$first": "$empFname" },
                "empMname": { "$first": "$empMname" },
                "empLname": { "$first": "$empLname" },
@@ -650,9 +657,13 @@ function getAllEmployeeLeaves() {
                "sowStartDate": { "$first": "$sowStartDate" },
                "sowEndDate": { "$first": "$sowEndDate" },
                "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "wrkCity": { "$first": "$empEsaLoc.cityName" },
+               "cityCode": { "$first": "$empEsaLoc.cityCode" },
+               "cityName": { "$first": "$empEsaLoc.cityName" },
+               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
+               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
+               "currency": {"$first": "$empEsaProj.currency"},
                "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": "$projectionActive" },
+               "projectionActive": { "$first": { $toInt: "$projectionActive" } },
                "leave": {
                   "$push": {
                      "_id": "$empEsaLeave._id",

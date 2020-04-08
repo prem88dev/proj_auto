@@ -29,7 +29,7 @@ if (!process.argv[2] || !process.argv[3] || !process.argv[4]) {
                   client.close(); /* close connection to db when you are done with it */
                }); /* end of insertMany */
             }
-         }); //end of readFile
+         }); /* end of readFile */
       }
    });
 }

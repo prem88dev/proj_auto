@@ -2,7 +2,7 @@ var MongoClient = require('mongodb').MongoClient
 var fs = require('fs');
 if (!process.argv[2] || !process.argv[3] || !process.argv[4]) {
    console.log("Arguments are not proper - verify");
-   console.log("Usage: import2mongo <sourcefilepath> <dbname> <collectioname>")
+   console.log("Usage: import2mongo <sourcefilepath> <dbname> <collectioname>");
 } else {
    var INPUT_FILE = process.argv[2];
    var DB_NAME = process.argv[3];

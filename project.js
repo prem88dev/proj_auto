@@ -62,8 +62,8 @@ function listEmployeeInProj(esaId) {
          {
             $lookup: {
                from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
+               localField: "cityCode",
+               foreignField: "cityCode",
                as: "empEsaLoc"
             }
          },
@@ -76,25 +76,26 @@ function listEmployeeInProj(esaId) {
             }
          },
          {
-            $project: {
+            $group: {
                "_id": "$_id",
-               "esaId": { $toInt: "$esaId" },
-               "esaDesc": "$esaDesc",
-               "projName": "$projName",
-               "ctsEmpId": "$ctsEmpId",
-               "empFname": "$empFname",
-               "empMname": "$empMname",
-               "empLname": "$empLname",
-               "lowesUid": "$lowesUid",
-               "deptName": "$deptName",
-               "sowStartDate": "$sowStartDate",
-               "sowEndDate": "$sowEndDate",
-               "foreseenEndDate": "$foreseenEndDate",
-               "wrkCity": "$wrkCity",
-               "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
-               "billRatePerHr": { $toInt: "$billRatePerHr" },
-               "empEsaLink": "$empEsaLink",
-               "projectionActive": { $toInt: "$projectionActive" }
+               "esaId": { "$first": { $toInt: "$esaId" } },
+               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
+               "projName": { "$first": "$projName" },
+               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
+               "empFname": { "$first": "$empFname" },
+               "empMname": { "$first": "$empMname" },
+               "empLname": { "$first": "$empLname" },
+               "lowesUid": { "$first": "$lowesUid" },
+               "deptName": { "$first": "$deptName" },
+               "sowStartDate": { "$first": "$sowStartDate" },
+               "sowEndDate": { "$first": "$sowEndDate" },
+               "foreseenEndDate": { "$first": "$foreseenEndDate" },
+               "cityCode": { "$first": "$empEsaLoc.cityCode" },
+               "cityName": { "$first": "$empEsaLoc.cityName" },
+               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
+               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
+               "empEsaLink": { "$first": "$empEsaLink" },
+               "projectionActive": { "$first": { $toInt: "$projectionActive" } }
             }
          }
       ]).toArray(function (err, allProj) {

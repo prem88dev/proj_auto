@@ -78,24 +78,10 @@ function listEmployeeInProj(esaId) {
          {
             $group: {
                "_id": "$_id",
-               "esaId": { "$first": { $toInt: "$esaId" } },
-               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
-               "projName": { "$first": "$projName" },
                "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
                "empFname": { "$first": "$empFname" },
                "empMname": { "$first": "$empMname" },
-               "empLname": { "$first": "$empLname" },
-               "lowesUid": { "$first": "$lowesUid" },
-               "deptName": { "$first": "$deptName" },
-               "sowStartDate": { "$first": "$sowStartDate" },
-               "sowEndDate": { "$first": "$sowEndDate" },
-               "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "cityCode": { "$first": "$empEsaLoc.cityCode" },
-               "cityName": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
-               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
-               "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": { $toInt: "$projectionActive" } }
+               "empLname": { "$first": "$empLname" }
             }
          }
       ]).toArray(function (err, allProj) {

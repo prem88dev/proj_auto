@@ -2,6 +2,30 @@ const dbObj = require("./database");
 const empLeaveColl = "emp_leave";
 const locLeaveColl = "loc_holiday";
 
+function computeWeekdaysInLeave(leaveArr) {
+   let weekdaysInLeave = 0;
+   return new Promise(async (resolve, _reject) => {
+      await leaveArr.forEach((leave) => {
+         getDaysBetween(leave.startDate, leave.endDate, true).then((weekdays) => {
+            weekdaysInLeave += weekdays;
+         });
+      });
+      resolve(weekdaysInLeave);
+   });
+}
+
+function computeLeaveDays(leaveArr) {
+   let leaveDays = 0;
+   return new Promise(async (resolve, _reject) => {
+      await leaveArr.forEach((leave) => {
+         getDaysBetween(leave.startDate, leave.endDate, false).then((daysBetween) => {
+            leaveDays += daysBetween;
+         });
+      });
+      resolve(leaveDays);
+   });
+}
+
 /* calculate number of days between */
 function getDaysBetween(startDate, endDate, getWeekDays) {
    let daysBetween = 0;
@@ -316,6 +340,8 @@ function countLocationHolidays(cityCode, monthStartDate, monthEndDate) {
 
 
 module.exports = {
+   computeWeekdaysInLeave,
+   computeLeaveDays,
    getDaysBetween,
    countPersonalDays,
    countLocationHolidays

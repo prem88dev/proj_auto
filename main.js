@@ -13,29 +13,6 @@ libApp.use(bp.json());
 libApp.use(cors());
 
 
-libApp.get("/countLeaves", (req, res) => {
-    let empEsaLink = req.body.empEsaLink;
-    let ctsEmpId = req.body.ctsEmpId;
-    let leaveStartDate = req.body.leaveStartDate;
-    let leaveStopDate = req.body.leaveStopDate;
-    revObj.countPersonalDays(empEsaLink, ctsEmpId, leaveStartDate, leaveStopDate).then((count) => {
-        res.json(count);
-    })
-});
-
-
-libApp.get("/countBuffers", (req, res) => {
-    empObj.getBufferCount(req.body.empEsaLink, req.body.ctsEmpId).then((count) => {
-        res.json(count);
-    })
-});
-
-libApp.get("/getEmpLeave", (req, res) => {
-    empObj.getPersonalLeave(req.body.empEsaLink, req.body.ctsEmpId, req.body.revenueYear).then((count) => {
-        res.json(count);
-    })
-});
-
 /* get project wise trend */
 libApp.get("/getLeave", (req, res) => {
     let noError = true;
@@ -86,20 +63,6 @@ libApp.get("/getBuffer", (req, res) => {
     });
 });
 
-
-/* get project wise trend */
-libApp.get("/getLocLeave", (req, res) => {
-    let wrkCity = req.body.wrkCity;
-    let leaveStartDate = req.body.leaveStartDate;
-    let leaveStopDate = req.body.leaveStopDate;
-    revObj.countLocationHolidays(wrkCity, leaveStartDate, leaveStopDate).then((locLeaves) => {
-        res.json(locLeaves);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
 /* get project wise trend */
 libApp.get("/projWiseTrend", (req, res) => {
     var esaId = req.body.esaId;
@@ -133,19 +96,6 @@ libApp.get("/listEmpInProj", (req, res) => {
     });
 });
 
-libApp.get("/getLeaveCount", (req, res) => {
-    let empEsaLink = req.body.empEsaLink;
-    let ctsEmpId = req.body.ctsEmpId;
-    let leaveStartDate = req.body.leaveStartDate;
-    let leaveStopDate = req.body.leaveStopDate;
-    revObj.countPersonalDays(empEsaLink, ctsEmpId, leaveStartDate, leaveStopDate).then((empDtl) => {
-        res.json(empDtl);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
 //Get all active employee projections of specific project
 libApp.get("/getEmpDtl", (req, res) => {
     let recordId = req.body.recordId;
@@ -162,58 +112,6 @@ libApp.get("/getEmpDtl", (req, res) => {
 libApp.get("/getAllEmpLeave", (_req, res) => {
     dbObj.getAllEmployeeLeaves().then((allEmpLeave) => {
         res.json(allEmpLeave);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
-//list projection for all associates across all projects
-libApp.get("/listAllEmp", (_req, res) => {
-    dbObj.listAllEmployees().then((allEmp) => {
-        res.json(allEmp);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
-//list all active projections across all projects
-libApp.get("/listAllActEmp", (_req, res) => {
-    dbObj.listAllActiveEmployee().then((allActEmp) => {
-        res.json(allActEmp);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
-//list all inactive projections across all projects
-libApp.get("/listAllInactEmp", (_req, res) => {
-    dbObj.listAllInactiveEmployee().then((allInactEmp) => {
-        res.json(allInactEmp);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
-//list all active projection for associates in a specific project
-libApp.get("/listActEmpInProj", (req, res) => {
-    var esaId = req.body.esaId;
-    dbObj.listActiveEmployeeInProj(esaId).then((actEmpInProj) => {
-        res.json(actEmpInProj);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
-//list all inactive projection associates in a specific project
-libApp.get("/listInactEmpInProj", (req, res) => {
-    var esaId = req.body.esaId;
-    dbObj.listInactiveEmployeeInProj(esaId).then((inactInProj) => {
-        res.json(inactInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         res.json(errobj);

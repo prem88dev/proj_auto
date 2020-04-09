@@ -11,12 +11,12 @@ function listAllProjects() {
       db.collection(esaProjColl).aggregate([
          {
             $project: {
-               "_id": 1,
-               "esaId": 2,
-               "esaDesc": 3,
-               "currency": 4,
-               "billingMode": 5,
-               "empEsaLink": 6
+               "_id": "$_id",
+               "esaId": { $toInt: "$esaId" },
+               "esaDesc": "$esaDesc",
+               "currency": "$currency",
+               "billingMode": "$billingMode",
+               "empEsaLink": "$empEsaLink"
             }
          }
       ]).toArray(function (err, projectList) {
@@ -112,186 +112,8 @@ function getProjectRevenue(esaId, revenueYear) {
 }
 
 
-//get projection data for all projects
-function listInactiveEmployeeInProj(esaId) {
-   return new Promise((resolve, reject) => {
-      db = getDb();
-      var myCol = db.collection(empProjColl);
-      myCol.aggregate([
-         {
-            $lookup: {
-               from: "esa_proj",
-               localField: "empEsaLink",
-               foreignField: "empEsaLink",
-               as: "empEsaProj"
-            }
-         },
-         {
-            $unwind: "$empEsaProj"
-         },
-         {
-            $lookup: {
-               from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
-               as: "empEsaLoc"
-            }
-         },
-         {
-            $unwind: "$empEsaLoc"
-         },
-         {
-            $lookup: {
-               from: "emp_leave",
-               localField: "ctsEmpId",
-               foreignField: "ctsEmpId",
-               as: "empEsaLeave"
-            }
-         },
-         {
-            $unwind: "$empEsaLeave"
-         },
-         {
-            $match: {
-               "esaId": esaId,
-               "projectionActive": "0"
-            }
-         },
-         {
-            $group: {
-               "_id": "$_id",
-               "esaId": { "$first": "$empEsaProj.esaId" },
-               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
-               "projName": { "$first": "$projName" },
-               "ctsEmpId": { "$first": "$ctsEmpId" },
-               "empFname": { "$first": "$empFname" },
-               "empMname": { "$first": "$empMname" },
-               "empLname": { "$first": "$empLname" },
-               "lowesUid": { "$first": "$lowesUid" },
-               "deptName": { "$first": "$deptName" },
-               "sowStartDate": { "$first": "$sowStartDate" },
-               "sowEndDate": { "$first": "$sowEndDate" },
-               "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "wrkCity": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
-               "billRatePerHr": { "$first": "$billRatePerHr" },
-               "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": "$projectionActive" },
-               "leave": {
-                  "$push": {
-                     "_id": "$empEsaLeave._id",
-                     "month": "$empEsaLeave.month",
-                     "startDate": "$empEsaLeave.startDate",
-                     "endDate": "$empEsaLeave.endDate",
-                     "days": "$empEsaLeave.days"
-                  }
-               }
-            }
-         }
-      ]).toArray(function (err, oneProj) {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(oneProj);
-         }
-      });
-   });
-}
-
-
-
-//get projection data for all projects
-function listActiveEmployeeInProj(esaId) {
-   return new Promise((resolve, reject) => {
-      db = getDb();
-      var myCol = db.collection(empProjColl);
-      myCol.aggregate([
-         {
-            $lookup: {
-               from: "esa_proj",
-               localField: "empEsaLink",
-               foreignField: "empEsaLink",
-               as: "empEsaProj"
-            }
-         },
-         {
-            $unwind: "$empEsaProj"
-         },
-         {
-            $lookup: {
-               from: "wrk_loc",
-               localField: "wrkCity",
-               foreignField: "wrkCity",
-               as: "empEsaLoc"
-            }
-         },
-         {
-            $unwind: "$empEsaLoc"
-         },
-         {
-            $lookup: {
-               from: "emp_leave",
-               localField: "ctsEmpId",
-               foreignField: "ctsEmpId",
-               as: "empEsaLeave"
-            }
-         },
-         {
-            $unwind: "$empEsaLeave"
-         },
-         {
-            $match: {
-               "esaId": esaId,
-               "projectionActive": "1"
-            }
-         },
-         {
-            $group: {
-               "_id": "$_id",
-               "esaId": { "$first": "$empEsaProj.esaId" },
-               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
-               "projName": { "$first": "$projName" },
-               "ctsEmpId": { "$first": "$ctsEmpId" },
-               "empFname": { "$first": "$empFname" },
-               "empMname": { "$first": "$empMname" },
-               "empLname": { "$first": "$empLname" },
-               "lowesUid": { "$first": "$lowesUid" },
-               "deptName": { "$first": "$deptName" },
-               "sowStartDate": { "$first": "$sowStartDate" },
-               "sowEndDate": { "$first": "$sowEndDate" },
-               "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "wrkCity": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": "$wrkHrPerDay" },
-               "billRatePerHr": { "$first": "$billRatePerHr" },
-               "empEsaLink": { "$first": "$empEsaLink" },
-               "projectionActive": { "$first": "$projectionActive" },
-               "leave": {
-                  "$push": {
-                     "_id": "$empEsaLeave._id",
-                     "month": "$empEsaLeave.month",
-                     "startDate": "$empEsaLeave.startDate",
-                     "endDate": "$empEsaLeave.endDate",
-                     "days": "$empEsaLeave.days"
-                  }
-               }
-            }
-         }
-      ]).toArray(function (err, oneProj) {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(oneProj);
-         }
-      });
-   });
-}
-
-
-
 module.exports = {
    listAllProjects,
    listEmployeeInProj,
-   getProjectRevenue,
-   listInactiveEmployeeInProj,
-   listActiveEmployeeInProj
+   getProjectRevenue
 }

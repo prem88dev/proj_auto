@@ -2,30 +2,6 @@ const dbObj = require('./database');
 const commObj = require('./utility');
 const locLeaveColl = "loc_holiday";
 
-function computeWeekdaysInLeave(leaveArr) {
-   let weekdaysInLeave = 0;
-   return new Promise(async (resolve, _reject) => {
-      await leaveArr.forEach((leave) => {
-         commObj.getDaysBetween(leave.startDate, leave.endDate, true).then((weekdays) => {
-            weekdaysInLeave += weekdays;
-         });
-      });
-      resolve(weekdaysInLeave);
-   });
-}
-
-function computeLeaveDays(leaveArr) {
-   let leaveDays = 0;
-   return new Promise(async (resolve, _reject) => {
-      await leaveArr.forEach((leave) => {
-         commObj.getDaysBetween(leave.startDate, leave.endDate, false).then((daysBetween) => {
-            leaveDays += daysBetween;
-         });
-      });
-      resolve(leaveDays);
-   });
-}
-
 
 function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
    return new Promise((resolve, reject) => {
@@ -223,15 +199,48 @@ function getLocationLeave(cityCode, revenueYear) {
                   "_id": "$_id",
                   "startDate": "$leaveStart",
                   "endDate": "$leaveEnd",
-                  "days": "$days",
+                  "days": { $toInt: "$days" },
                   "description": "$description"
+               }
+            },
+            {
+               $addFields: {
+                  startDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [{ $toString: { $dayOfMonth: "$startDate" } }, "-",
+                           { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
+                           { $toString: { $year: "$startDate" } }]
+                        }
+                     }
+                  },
+                  endDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [{ $toString: { $dayOfMonth: "$endDate" } }, "-",
+                           { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
+                           { $toString: { $year: "$endDate" } }]
+                        }
+                     }
+                  }
                }
             }
          ]).toArray((err, locLeaveArr) => {
             if (err) {
                reject("DB error in " + getLocationLeave.name + " function: " + err);
             } else if (locLeaveArr.length >= 1) {
-               resolve(locLeaveArr);
+               commObj.computeLeaveDays(locLeaveArr).then((allDaysInLeave) => {
+                  commObj.computeWeekdaysInLeave(locLeaveArr).then((workDaysInLeave) => {
+                     locLeaveArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
+                     resolve(locLeaveArr);
+                  });
+               });
             } else {
                resolve(locLeaveArr);
             }

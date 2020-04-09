@@ -48,7 +48,7 @@ function calcMonthBuffers(empBufferArrObj, monthIndex) {
          let bufferObjs = (empBufferArrObj.length - 1);
          await empBufferArrObj.forEach((empBuffer, idx) => {
             if (idx < bufferObjs) {
-               let bufferMonth = new Date(dateTime.parse(empBuffer.month, "MMYYYY", true)).getMonth();
+               let bufferMonth = new Date(dateTime.parse(empBuffer.month, "MMM-YYYY", true)).getMonth();
                if (monthIndex === bufferMonth) {
                   bufferDays += parseInt(empBuffer.days, 10);
                }
@@ -104,7 +104,7 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
                         monthRevenue = revenueDays * billHourPerDay * billRatePerHr;
                         cmiRevenue = cmiRevenueDays * billHourPerDay * billRatePerHr;
                      }
-                     monthRevenueObj = { 'month': revenueMonth, 'startDate': dateFormat(monthStartDate, "dd-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "dd-mmm-yyyy"), 'weekDays': weekDays, 'locationHoliday': locationHoliday, 'selfDays': selfDays, 'buffer': buffer, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
+                     monthRevenueObj = { 'month': dateFormat(dateTime.parse(revenueMonth, "MMYYYY", true), "mmm-yyyy"), 'startDate': dateFormat(monthStartDate, "d-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "d-mmm-yyyy"), 'weekDays': weekDays, 'locationHolidays': locationHoliday, 'selfDays': selfDays, 'bufferDays': buffer, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
                      resolve(monthRevenueObj);
                   }).catch((calcMonthBuffersErr) => { reject(calcMonthBuffersErr); });
                }).catch((countLocationHolidaysErr) => { reject(countLocationHolidaysErr); });

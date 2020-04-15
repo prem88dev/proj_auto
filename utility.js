@@ -1,6 +1,7 @@
 const dbObj = require("./database");
 const empLeaveColl = "emp_leave";
 const locLeaveColl = "loc_holiday";
+const mSecInDay = 86400000;
 
 function computeWeekdaysInLeave(leaveArr) {
    let weekdaysInLeave = 0;
@@ -154,7 +155,7 @@ function countPersonalDays(empEsaLink, ctsEmpId, leaveStart, leaveStop) {
                                     { $gte: ["$leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: [leaveBegin, leaveDone] }, 1]
+                                 $divide: [{ $subtract: [leaveDone, leaveBegin] }, mSecInDay]
                               }
                            },
                            {
@@ -165,7 +166,7 @@ function countPersonalDays(empEsaLink, ctsEmpId, leaveStart, leaveStop) {
                                     { $lte: ["$leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: [leaveBegin, "$leaveEnd"] }, 1]
+                                 $divide: [{ $subtract: ["$leaveEnd", leaveBegin] }, mSecInDay]
                               }
                            },
                            {
@@ -177,7 +178,7 @@ function countPersonalDays(empEsaLink, ctsEmpId, leaveStart, leaveStop) {
                                     { $lte: ["$leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: ["$leaveStart", leaveDone] }, 1]
+                                 $divide: [{ $subtract: [leaveDone, "$leaveStart"] }, mSecInDay]
                               }
                            }
                         ]
@@ -288,7 +289,7 @@ function countLocationHolidays(cityCode, monthStartDate, monthEndDate) {
                                     { $gte: ["$leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: [leaveBegin, leaveDone] }, 1]
+                                 $divide: [{ $subtract: [leaveDone, leaveBegin] }, mSecInDay]
                               }
                            },
                            {
@@ -299,7 +300,7 @@ function countLocationHolidays(cityCode, monthStartDate, monthEndDate) {
                                     { $lte: ["$leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: [leaveBegin, "$leaveEnd"] }, 1]
+                                 $divide: [{ $subtract: ["$leaveEnd", leaveBegin] }, mSecInDay]
                               }
                            },
                            {
@@ -311,7 +312,7 @@ function countLocationHolidays(cityCode, monthStartDate, monthEndDate) {
                                     { $lte: ["$leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: ["$leaveStart", leaveDone] }, 1]
+                                 $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay]
                               }
                            }
                         ]

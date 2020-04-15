@@ -1,6 +1,7 @@
 const dbObj = require('./database');
 const commObj = require('./utility');
 const locLeaveColl = "loc_holiday";
+const mSecInDay = 86400000;
 
 
 function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
@@ -81,7 +82,7 @@ function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
                                     { $gte: ["leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: [leaveBegin, leaveDone] }, 1]
+                                 $divide: [{ $subtract: [leaveDone, leaveBegin] }, mSecInDay]
                               }
                            },
                            {
@@ -92,7 +93,7 @@ function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
                                     { $lte: ["leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: [leaveBegin, "$leaveEnd"] }, 1]
+                                 $divide: [{ $subtract: ["$leaveEnd", leaveBegin] }, mSecInDay]
                               }
                            },
                            {
@@ -104,7 +105,7 @@ function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
                                     { $lte: ["leaveEnd", leaveDone] }
                                  ]
                               }, then: {
-                                 $add: [{ $subtract: ["$leaveStart", leaveDone] }, 1]
+                                 $divide: [{ $subtract: [leaveDone, "$leaveStart"] }, mSecInDay]
                               }
                            }
                         ]

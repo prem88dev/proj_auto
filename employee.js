@@ -7,7 +7,7 @@ const dateFormat = require("dateformat");
 const empLeaveColl = "emp_leave";
 const empBuffer = "emp_buffer";
 const empProjColl = "emp_proj";
-
+const mSecInDay = 86400000;
 
 
 function computeBufferDays(bufferArr) {
@@ -21,6 +21,53 @@ function computeBufferDays(bufferArr) {
 }
 
 
+/*
+   listEmployeeInProj:
+      to get list of employees in a project
+
+   params:
+      esaId - project id for which employees are to be listed
+   
+   returns array of employee with their first, middle and last names
+*/
+function listEmployeeInProj(esaId) {
+   return new Promise((resolve, reject) => {
+      db = dbObj.getDb();
+      db.collection(empProjColl).aggregate([
+         {
+            $lookup: {
+               from: "esa_proj",
+               localField: "empEsaLink",
+               foreignField: "empEsaLink",
+               as: "empEsaProj"
+            }
+         },
+         {
+            $unwind: "$empEsaProj"
+         },
+         {
+            $match: {
+               "esaId": esaId
+            }
+         },
+         {
+            $group: {
+               "_id": "$_id",
+               "empFname": { "$first": "$empFname" },
+               "empMname": { "$first": "$empMname" },
+               "empLname": { "$first": "$empLname" }
+            }
+         }
+      ]).toArray(function (err, allProj) {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(allProj);
+         }
+      });
+   });
+}
+
 
 /*
    getPersonalLeave:
@@ -31,7 +78,6 @@ function computeBufferDays(bufferArr) {
          empEsaLink - linker between employee and project
          ctsEmpId - employee id
          revenueYear - year for which leaves are required
-         monthIndex - month for which leave are required
 */
 function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
    return new Promise((resolve, reject) => {
@@ -116,7 +162,7 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
                         { case: { "$eq": ["$leaveStart", "$leaveEnd"] }, "then": 1 },
                         {
                            case: { "$gte": ["$leaveStart", "$leaveEnd"] }, "then": {
-                              $add: [{ $subtract: ["$leaveStart", "$leaveEnd"] }, 1]
+                              $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay]
                            }
                         }
                      ]
@@ -267,6 +313,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
       });
    });
 }
+
 
 /* get projection data for specific employee in selected project */
 function getEmployeeProjection(recordId, revenueYear) {
@@ -432,6 +479,7 @@ function getEmployeeProjection(recordId, revenueYear) {
 
 
 module.exports = {
+   listEmployeeInProj,
    getPersonalLeave,
    getBuffer,
    getEmployeeProjection

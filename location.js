@@ -4,19 +4,19 @@ const locLeaveColl = "loc_holiday";
 const mSecInDay = 86400000;
 
 
-function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
+function countLocationHolidays(cityCode, fromDate, toDate) {
    return new Promise((resolve, reject) => {
       if (cityCode === undefined || cityCode === "") {
-         reject(getPersonalLeave.name + ": Linker ID is not provided");
-      } else if (locLeaveStart === undefined || locLeaveStart === "") {
-         reject(getPersonalLeave.name + ": Leave start date is not provided");
-      } else if (locLeaveStop === undefined || locLeaveStop === "") {
-         reject(getPersonalLeave.name + ": Leave end date is not provided");
+         reject(countLocationHolidays.name + ": City code is not provided");
+      } else if (fromDate === undefined || fromDate === "") {
+         reject(countLocationHolidays.name + ": Leave start date is not provided");
+      } else if (toDate === undefined || toDate === "") {
+         reject(countLocationHolidays.name + ": Leave end date is not provided");
       } else {
-         let leaveBegin = new Date(locLeaveStart);
-         leaveBegin.setHours(0, 0, 0, 0);
-         let leaveDone = new Date(locLeaveStop);
-         leaveDone.setHours(0, 0, 0, 0);
+         let startDate = new Date(fromDate);
+         startDate.setUTCHours(0, 0, 0, 0);
+         let stopDate = new Date(toDate);
+         stopDate.setUTCHours(0, 0, 0, 0);
          dbObj.getDb().collection(locLeaveColl).aggregate([
             {
                $project: {
@@ -25,15 +25,19 @@ function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
                   "startDate": 3,
                   "endDate": 4,
                   "leaveStart": {
-                     $dateFromString: {
-                        dateString: "$startDate",
-                        format: "%d%m%Y"
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$startDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$startDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$startDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   },
                   "leaveEnd": {
-                     $dateFromString: {
-                        dateString: "$endDate",
-                        format: "%d%m%Y"
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   }
                }
@@ -41,26 +45,34 @@ function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
             {
                $match: {
                   "cityCode": cityCode,
-                  "$or": [
+                  $or: [
                      {
-                        "$and": [
-                           { "leaveStart": { "$lte": leaveBegin } },
-                           { "leaveEnd": { "$gte": leaveDone } }
+                        $and: [
+                           { "leaveStart": { "$lte": startDate } },
+                           { "leaveEnd": { "$gte": stopDate } }
                         ]
                      },
                      {
-                        "$and": [
-                           { "leaveStart": { "$lte": leaveBegin } },
-                           { "leaveEnd": { "$gte": leaveBegin } },
-                           { "leaveEnd": { "$lte": leaveDone } }
+                        $and: [
+                           { "leaveStart": { "$lte": startDate } },
+                           { "leaveEnd": { "$gte": startDate } },
+                           { "leaveEnd": { "$lte": stopDate } }
                         ]
                      },
                      {
-                        "$and": [
-                           { "leaveStart": { "$gte": leaveBegin } },
-                           { "leaveStart": { "$lte": leaveDone } },
-                           { "leaveEnd": { "$gte": leaveBegin } },
-                           { "leaveEnd": { "$lte": leaveDone } }
+                        $and: [
+                           { "leaveStart": { "$gte": startDate } },
+                           { "leaveStart": { "$lte": stopDate } },
+                           { "leaveEnd": { "$gte": startDate } },
+                           { "leaveEnd": { "$lte": stopDate } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { "$gte": startDate } },
+                           { "leaveStart": { "$lte": stopDate } },
+                           { "leaveEnd": { "$gte": startDate } },
+                           { "leaveEnd": { "$gte": stopDate } }
                         ]
                      }
                   ]
@@ -69,43 +81,56 @@ function countLocationHolidays(cityCode, locLeaveStart, locLeaveStop) {
             {
                $project: {
                   "_id": "$_id",
+                  "cityCode": "$cityCode",
                   "startDate": "$leaveStart",
                   "endDate": "$leaveEnd",
                   "calcDays": {
                      $switch: {
                         branches: [
-                           { case: { $eq: ["$leaveStart", "$leaveEnd"] }, "then": 1 },
+                           { case: { $eq: ["$leaveStart", "$leaveEnd"] }, then: 1 },
                            {
                               case: {
                                  $and: [
-                                    { $lte: ["leaveStart", leaveBegin] },
-                                    { $gte: ["leaveEnd", leaveDone] }
+                                    { $lte: ["$leaveStart", startDate] },
+                                    { $gte: ["$leaveEnd", stopDate] }
                                  ]
                               }, then: {
-                                 $divide: [{ $subtract: [leaveDone, leaveBegin] }, mSecInDay]
+                                 $divide: [{ $subtract: [stopDate, startDate] }, mSecInDay]
                               }
                            },
                            {
                               case: {
                                  $and: [
-                                    { $lte: ["leaveStart", leaveBegin] },
-                                    { $gte: ["leaveEnd", leaveBegin] },
-                                    { $lte: ["leaveEnd", leaveDone] }
+                                    { $lte: ["$leaveStart", startDate] },
+                                    { $gte: ["$leaveEnd", startDate] },
+                                    { $lte: ["$leaveEnd", stopDate] }
                                  ]
                               }, then: {
-                                 $divide: [{ $subtract: ["$leaveEnd", leaveBegin] }, mSecInDay]
+                                 $divide: [{ $subtract: ["$leaveEnd", startDate] }, mSecInDay]
                               }
                            },
                            {
                               case: {
                                  $and: [
-                                    { $gte: ["leaveStart", leaveBegin] },
-                                    { $lte: ["leaveStart", leaveDone] },
-                                    { $gte: ["leaveEnd", leaveBegin] },
-                                    { $lte: ["leaveEnd", leaveDone] }
+                                    { $gte: ["$leaveStart", startDate] },
+                                    { $lte: ["$leaveStart", stopDate] },
+                                    { $gte: ["$leaveEnd", startDate] },
+                                    { $lte: ["$leaveEnd", stopDate] }
                                  ]
                               }, then: {
-                                 $divide: [{ $subtract: [leaveDone, "$leaveStart"] }, mSecInDay]
+                                 $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay]
+                              }
+                           },
+                           {
+                              case: {
+                                 $and: [
+                                    { $gte: ["$leaveStart", startDate] },
+                                    { $lte: ["$leaveStart", stopDate] },
+                                    { $gte: ["$leaveEnd", startDate] },
+                                    { $gte: ["$leaveEnd", stopDate] }
+                                 ]
+                              }, then: {
+                                 $divide: [{ $subtract: [stopDate, "$leaveStart"] }, mSecInDay]
                               }
                            }
                         ]

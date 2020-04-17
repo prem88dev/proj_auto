@@ -61,7 +61,7 @@ function calcMonthBuffers(empBufferArrObj, monthIndex) {
 
 
 
-function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStartDate, revMonthEndDate) {
+function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStartDate, revMonthStopDate) {
    return new Promise((resolve, reject) => {
       if (empJsonObj === undefined || empJsonObj === "") {
          reject(calcMonthLeaves.name + ": Employee leave array is not provided");
@@ -71,28 +71,30 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
          reject(calcMonthLeaves.name + ": Month index is not provided");
       } else if (revMonthStartDate === undefined || revMonthStartDate === "") {
          reject(calcMonthLeaves.name + ": Revenue month start date is not provided");
-      } else if (revMonthEndDate === undefined || revMonthEndDate === "") {
+      } else if (revMonthStopDate === undefined || revMonthStopDate === "") {
          reject(calcMonthLeaves.name + ": Revenue month end date is not provided");
       } else {
          let billRatePerHr = parseInt(empJsonObj[0].billRatePerHr, 10);
          let billHourPerDay = parseInt(empJsonObj[0].wrkHrPerDay, 10);
          let revenueMonth = printf("%02s%04s", monthIndex + 1, parseInt(revenueYear, 10));
+         let revenueStartDate = new Date(revMonthStartDate);
+         revenueStartDate.setHours(0, 0, 0, 0);
+         let revenueStopDate = new Date(revMonthStopDate);
+         revenueStopDate.setHours(0, 0, 0, 0);
          let monthStartDate = new Date(revenueYear, monthIndex, 1);
          monthStartDate.setHours(0, 0, 0, 0);
          let monthEndDate = new Date(revenueYear, parseInt((monthIndex + 1), 10), 0);
          monthEndDate.setHours(0, 0, 0, 0);
-         let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "DDMMYYYY", true));
+         let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "D-MMM-YYYY", true));
          sowStart.setHours(0, 0, 0, 0);
-         let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "DDMMYYYY", true));
+         let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "D-MMM-YYYY", true));
          sowEnd.setHours(0, 0, 0, 0);
-         commObj.getDaysBetween(revMonthStartDate, revMonthEndDate, true).then((workDays) => {
+         commObj.getDaysBetween(revMonthStartDate, revMonthStopDate, true).then((workDays) => {
             let empEsaLink = empJsonObj[0].empEsaLink;
             let ctsEmpId = `${empJsonObj[0].ctsEmpId}`;
-            commObj.countPersonalDays(empEsaLink, ctsEmpId, revMonthStartDate, revMonthEndDate).then((personalDays) => {
-               commObj.countLocationHolidays(empJsonObj[0].cityCode, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
+            commObj.countPersonalDays(empEsaLink, ctsEmpId, revMonthStartDate, revMonthStopDate).then((personalDays) => {
+               commObj.countLocationHolidays(empJsonObj[0].cityCode, revMonthStartDate, revMonthStopDate).then((locationLeaves) => {
                   calcMonthBuffers(empJsonObj[2].buffers, monthIndex).then((bufferDays) => {
-                     console.log("personalDays: " + personalDays);
-                     console.log("locationLeaves: " + locationLeaves);
                      let monthRevenue = 0;
                      let cmiRevenue = 0;
                      let monthRevenueObj = {};
@@ -102,9 +104,35 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
                      let buffer = parseInt(bufferDays, 10);
                      let revenueDays = weekDays - (locationHoliday + selfDays + buffer);
                      let cmiRevenueDays = weekDays - locationHoliday;
-                     if (revMonthStartDate >= sowStart && revMonthEndDate <= sowEnd) {
-                        monthRevenue = revenueDays * billHourPerDay * billRatePerHr;
-                        cmiRevenue = cmiRevenueDays * billHourPerDay * billRatePerHr;
+                     let revenueStartDateSlack = 0;
+                     let revenueStopDateSlack = 0;
+                     if (revenueStartDate.getFullYear() === sowStart.getFullYear() && revenueStartDate.getMonth() === sowStart.getMonth()) {
+                        if (revenueStartDate.getDate() > sowStart.getDate()) {
+                           revenueStartDateSlack = revenueStartDate.getDate() - sowStart.getDate();
+                        } else if (revenueStartDate.getDate() < sowStart.getDate()) {
+                           revenueStartDateSlack = sowStart.getDate() - revenueStartDate.getDate();
+                        }
+                     }
+                     if (revenueStopDate.getFullYear() === sowEnd.getFullYear() && revenueStopDate.getMonth() === sowEnd.getMonth()) {
+                        if (revenueStopDate.getDate() > sowEnd.getDate()) {
+                           revenueStopDateSlack = revenueStopDate.getDate() - sowEnd.getDate();
+                        } else if (revenueStopDate.getDate() < sowEnd.getDate()) {
+                           revenueStopDateSlack = sowEnd.getDate() - revenueStopDate.getDate();
+                        }
+                     }
+                     let totalRevenueDays = revenueDays;
+                     let totalCmiDays = cmiRevenueDays;
+                     if (revenueStartDate.getFullYear() >= sowStart.getFullYear() && revenueStopDate.getFullYear() <= sowEnd.getFullYear()) {
+                        if (revenueStartDate.getMonth() === sowStart.getMonth()) {
+                           totalRevenueDays = revenueDays - revenueStartDateSlack;
+                           totalCmiDays = cmiRevenueDays - revenueStartDateSlack;
+                        }
+                        if (revenueStopDate.getMonth() === sowEnd.getMonth()) {
+                           totalRevenueDays = revenueDays - revenueStopDateSlack;
+                           totalCmiDays = cmiRevenueDays - revenueStopDateSlack;
+                        }
+                        monthRevenue = totalRevenueDays * billHourPerDay * billRatePerHr;
+                        cmiRevenue = totalCmiDays * billHourPerDay * billRatePerHr;
                      }
                      monthRevenueObj = { 'month': dateFormat(dateTime.parse(revenueMonth, "MMYYYY", true), "mmm-yyyy"), 'startDate': dateFormat(monthStartDate, "d-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "d-mmm-yyyy"), 'weekDays': weekDays, 'locationHolidays': locationHoliday, 'selfDays': selfDays, 'bufferDays': buffer, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
                      resolve(monthRevenueObj);

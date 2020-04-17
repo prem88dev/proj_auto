@@ -1,4 +1,6 @@
 const commObj = require("./utility");
+const empObj = require("./employee");
+const locObj = require("./location");
 const dateTime = require("date-and-time");
 const dateFormat = require("dateformat");
 const printf = require('printf');
@@ -87,9 +89,9 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
          sowEnd.setHours(0, 0, 0, 0);
          commObj.getDaysBetween(revMonthStartDate, revMonthEndDate, true).then((workDays) => {
             let empEsaLink = empJsonObj[0].empEsaLink;
-            let ctsEmpId = `${empJsonObj[0].ctsEmpId}`
-            commObj.countPersonalDays(empEsaLink, ctsEmpId, revMonthStartDate, revMonthEndDate).then((personalDays) => {
-               commObj.countLocationHolidays(empJsonObj[0].cityCode, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
+            let ctsEmpId = `${empJsonObj[0].ctsEmpId}`;
+            empObj.countPersonalDays(empEsaLink, ctsEmpId, revMonthStartDate, revMonthEndDate).then((personalDays) => {
+               locObj.countLocationHolidays(empJsonObj[0].cityCode, revMonthStartDate, revMonthEndDate).then((locationLeaves) => {
                   calcMonthBuffers(empJsonObj[2].buffers, monthIndex).then((bufferDays) => {
                      let monthRevenue = 0;
                      let cmiRevenue = 0;

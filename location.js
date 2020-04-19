@@ -40,22 +40,22 @@ function getLocationLeave(cityCode, revenueYear) {
             {
                $match: {
                   "cityCode": cityCode,
-                  "$or": [
+                  $or: [
                      {
-                        "$and": [
+                        $and: [
                            { "leaveStart": { "$lte": revenueStart } },
                            { "leaveEnd": { "$gte": revenueEnd } }
                         ]
                      },
                      {
-                        "$and": [
+                        $and: [
                            { "leaveStart": { "$lte": revenueStart } },
                            { "leaveEnd": { "$gte": revenueStart } },
                            { "leaveEnd": { "$lte": revenueEnd } }
                         ]
                      },
                      {
-                        "$and": [
+                        $and: [
                            { "leaveStart": { "$gte": revenueStart } },
                            { "leaveStart": { "$lte": revenueEnd } },
                            { "leaveEnd": { "$gte": revenueStart } },

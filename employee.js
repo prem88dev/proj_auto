@@ -69,24 +69,14 @@ function listEmployeeInProj(esaId) {
 }
 
 
-/*
-   getPersonalLeave:
-      returns an array of personal leaves
-
-   params:
-      input:
-         empEsaLink - linker between employee and project
-         ctsEmpId - employee id
-         revenueYear - year for which leaves are required
-*/
-function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
+function getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear) {
    return new Promise((resolve, reject) => {
       if (empEsaLink === undefined || empEsaLink === "") {
-         reject(getPersonalLeave.name + ": Linker ID is not provided");
+         reject(getYearlySelfDays.name + ": Linker ID is not provided");
       } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(getPersonalLeave.name + ": Employee ID is not provided");
+         reject(getYearlySelfDays.name + ": Employee ID is not provided");
       } else if (revenueYear === undefined || revenueYear === "") {
-         reject(getPersonalLeave.name + ": Revenue year is not provided");
+         reject(getYearlySelfDays.name + ": Revenue year is not provided");
       }
       let leaveYear = parseInt(revenueYear, 10);
       let revenueStart = new Date(leaveYear, 0, 2);
@@ -126,26 +116,34 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
             $match: {
                "empEsaLink": empEsaLink,
                "ctsEmpId": ctsEmpId,
-               "$or": [
+               $or: [
                   {
-                     "$and": [
+                     $and: [
                         { "leaveStart": { "$lte": revenueStart } },
                         { "leaveEnd": { "$gte": revenueEnd } }
                      ]
                   },
                   {
-                     "$and": [
+                     $and: [
                         { "leaveStart": { "$lte": revenueStart } },
                         { "leaveEnd": { "$gte": revenueStart } },
                         { "leaveEnd": { "$lte": revenueEnd } }
                      ]
                   },
                   {
-                     "$and": [
+                     $and: [
                         { "leaveStart": { "$gte": revenueStart } },
                         { "leaveStart": { "$lte": revenueEnd } },
                         { "leaveEnd": { "$gte": revenueStart } },
                         { "leaveEnd": { "$lte": revenueEnd } }
+                     ]
+                  },
+                  {
+                     $and: [
+                        { "leaveStart": { "$gte": revenueStart } },
+                        { "leaveStart": { "$lte": revenueEnd } },
+                        { "leaveEnd": { "$gte": revenueStart } },
+                        { "leaveEnd": { "$gte": revenueEnd } }
                      ]
                   }
                ]
@@ -159,10 +157,50 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
                "days": {
                   $switch: {
                      branches: [
-                        { case: { "$eq": ["$leaveStart", "$leaveEnd"] }, "then": 1 },
+                        { case: { $eq: ["$leaveStart", "$leaveEnd"] }, then: 1 },
                         {
-                           case: { "$gte": ["$leaveStart", "$leaveEnd"] }, "then": {
+                           case: {
+                              $and: [
+                                 { "$lte": ["$leaveStart", revenueStart] },
+                                 { "$gte": ["$leaveEnd", revenueEnd] }
+                              ]
+                           }, then: {
+                              $divide: [{ $subtract: [revenueEnd, revenueStart] }, mSecInDay]
+                           }
+                        },
+                        {
+                           case: {
+                              $and: [
+                                 { "$lte": ["$leaveStart", revenueStart] },
+                                 { "$gte": ["$leaveEnd", revenueStart] },
+                                 { "$lte": ["$leaveEnd", revenueEnd] }
+                              ]
+                           }, then: {
+                              $divide: [{ $subtract: ["$leaveEnd", revenueStart] }, mSecInDay]
+                           }
+                        },
+                        {
+                           case: {
+                              $and: [
+                                 { "$gte": ["$leaveStart", revenueStart] },
+                                 { "$lte": ["$leaveStart", revenueEnd] },
+                                 { "$gte": ["$leaveEnd", revenueStart] },
+                                 { "$lte": ["$leaveEnd", revenueEnd] }
+                              ]
+                           }, then: {
                               $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay]
+                           }
+                        },
+                        {
+                           case: {
+                              $and: [
+                                 { "$gte": ["$leaveStart", revenueStart] },
+                                 { "$lte": ["$leaveStart", revenueEnd] },
+                                 { "$gte": ["$leaveEnd", revenueStart] },
+                                 { "$gte": ["$leaveEnd", revenueEnd] }
+                              ]
+                           }, then: {
+                              $divide: [{ $subtract: [revenueEnd, "$leaveStart"] }, mSecInDay]
                            }
                         }
                      ]
@@ -195,7 +233,7 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
                      in: {
                         $concat: [
                            { $toString: { $dayOfMonth: "$endDate" } }, "-",
-                           { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
+                           { $arrayElemAt: ["$$monthsInString", { $month: "$endDate" }] }, "-",
                            { $toString: { $year: "$endDate" } }
                         ]
                      }
@@ -205,7 +243,7 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
          }
       ]).toArray((err, leaveArr) => {
          if (err) {
-            reject("DB error in " + getPersonalLeave.name + ": " + err);
+            reject("DB error in " + getYearlySelfDays.name + ": " + err);
          } else if (leaveArr.length >= 1) {
             commObj.computeLeaveDays(leaveArr).then((allDaysInLeave) => {
                commObj.computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
@@ -220,6 +258,10 @@ function getPersonalLeave(empEsaLink, ctsEmpId, revenueYear) {
       });
    });
 }
+
+
+
+
 
 /*
    getBuffer:
@@ -265,7 +307,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
          },
          {
             $match: {
-               "$and": [
+               $and: [
                   { "empEsaLink": { "$eq": empEsaLink } },
                   { "ctsEmpId": { "$eq": ctsEmpId } },
                   { "bufferDate": { "$gte": revenueStart } },
@@ -446,7 +488,7 @@ function getEmployeeProjection(recordId, revenueYear) {
             let empEsaLink = empDtl[0].empEsaLink;
             let ctsEmpId = `${empDtl[0].ctsEmpId}`;
             let cityCode = empDtl[0].cityCode;
-            getPersonalLeave(empEsaLink, ctsEmpId, revenueYear).then((leaveArr) => {
+            getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear).then((leaveArr) => {
                empDtl.push({ "leaves": leaveArr });
                getBuffer(empEsaLink, ctsEmpId, revenueYear).then((bufferArr) => {
                   empDtl.push({ "buffers": bufferArr });
@@ -467,7 +509,7 @@ function getEmployeeProjection(recordId, revenueYear) {
                      }).catch((calcEmpRevenueErr) => { reject(calcEmpRevenueErr); });
                   }).catch((getLocationLeaveErr) => { reject(getLocationLeaveErr); });
                }).catch((getBufferErr) => { reject(getBufferErr); });
-            }).catch((getPersonalLeaveErr) => { reject(getPersonalLeaveErr); });
+            }).catch((getYearlySelfDaysErr) => { reject(getYearlySelfDaysErr); });
          } else if (empDtl.length === 0) {
             reject(getEmployeeProjection.name + ": No records found")
          } else if (empDtl.length > 1) {
@@ -482,7 +524,7 @@ function getEmployeeProjection(recordId, revenueYear) {
 
 module.exports = {
    listEmployeeInProj,
-   getPersonalLeave,
+   getYearlySelfDays,
    getBuffer,
    getEmployeeProjection
 }

@@ -89,52 +89,41 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, revMonthStart
          sowStart.setHours(0, 0, 0, 0);
          let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowEndDate, "D-MMM-YYYY", true));
          sowEnd.setHours(0, 0, 0, 0);
-         commObj.getDaysBetween(revMonthStartDate, revMonthStopDate, true).then((workDays) => {
+         let refStartDate = revenueStartDate;
+         let refStopDate = revenueStopDate;
+         if (sowStart.getFullYear() === revenueStartDate.getFullYear() && sowStart.getMonth() === revenueStartDate.getMonth()) {
+            if (sowStart.getDate() > revenueStartDate.getDate() ) {
+               refStartDate = sowStart;
+            }
+         }
+         if (sowEnd.getFullYear() === revenueStopDate.getFullYear() && sowEnd.getMonth() === revenueStopDate.getMonth()) {
+            if (sowEnd.getDate() < revenueStopDate.getDate() ) {
+               refStopDate = sowEnd;
+            }
+         }
+         commObj.getDaysBetween(refStartDate, refStopDate, true).then((revMonthWorkDays) => {
             let empEsaLink = empJsonObj[0].empEsaLink;
             let ctsEmpId = `${empJsonObj[0].ctsEmpId}`;
-            commObj.countPersonalDays(empEsaLink, ctsEmpId, revMonthStartDate, revMonthStopDate).then((personalDays) => {
-               commObj.countLocationHolidays(empJsonObj[0].cityCode, revMonthStartDate, revMonthStopDate).then((locationLeaves) => {
+            let cityCode = empJsonObj[0].cityCode;
+            let strStartDate = dateFormat(refStartDate, "yyyy-mm-dd") + "T00:00:00.000Z";
+            let strStopDate = dateFormat(refStopDate, "yyyy-mm-dd") + "T00:00:00.000Z";
+            commObj.countPersonalWeekdays(empEsaLink, ctsEmpId, cityCode, strStartDate, strStopDate).then((personalDays) => {
+               commObj.countLocationWeekdays(cityCode, refStartDate, refStopDate).then((locationLeaves) => {
                   calcMonthBuffers(empJsonObj[2].buffers, monthIndex).then((bufferDays) => {
                      let monthRevenue = 0;
                      let cmiRevenue = 0;
                      let monthRevenueObj = {};
-                     let weekDays = parseInt(workDays, 10);
+                     let revWorkDays = parseInt(revMonthWorkDays, 10);
                      let locationHoliday = parseInt(locationLeaves, 10);
                      let selfDays = parseInt(personalDays, 10);
                      let buffer = parseInt(bufferDays, 10);
-                     let revenueDays = weekDays - (locationHoliday + selfDays + buffer);
-                     let cmiRevenueDays = weekDays - locationHoliday;
-                     let revenueStartDateSlack = 0;
-                     let revenueStopDateSlack = 0;
-                     if (revenueStartDate.getFullYear() === sowStart.getFullYear() && revenueStartDate.getMonth() === sowStart.getMonth()) {
-                        if (revenueStartDate.getDate() > sowStart.getDate()) {
-                           revenueStartDateSlack = revenueStartDate.getDate() - sowStart.getDate();
-                        } else if (revenueStartDate.getDate() < sowStart.getDate()) {
-                           revenueStartDateSlack = sowStart.getDate() - revenueStartDate.getDate();
-                        }
+                     let revenueDays = revWorkDays - (locationHoliday + selfDays + buffer);
+                     let cmiRevenueDays = revWorkDays - locationHoliday;
+                     if (refStartDate >= sowStart && refStopDate <= sowEnd) {
+                        monthRevenue = revenueDays * billHourPerDay * billRatePerHr;
+                        cmiRevenue = cmiRevenueDays * billHourPerDay * billRatePerHr;
                      }
-                     if (revenueStopDate.getFullYear() === sowEnd.getFullYear() && revenueStopDate.getMonth() === sowEnd.getMonth()) {
-                        if (revenueStopDate.getDate() > sowEnd.getDate()) {
-                           revenueStopDateSlack = revenueStopDate.getDate() - sowEnd.getDate();
-                        } else if (revenueStopDate.getDate() < sowEnd.getDate()) {
-                           revenueStopDateSlack = sowEnd.getDate() - revenueStopDate.getDate();
-                        }
-                     }
-                     let totalRevenueDays = revenueDays;
-                     let totalCmiDays = cmiRevenueDays;
-                     if (revenueStartDate.getFullYear() >= sowStart.getFullYear() && revenueStopDate.getFullYear() <= sowEnd.getFullYear()) {
-                        if (revenueStartDate.getMonth() === sowStart.getMonth()) {
-                           totalRevenueDays = revenueDays - revenueStartDateSlack;
-                           totalCmiDays = cmiRevenueDays - revenueStartDateSlack;
-                        }
-                        if (revenueStopDate.getMonth() === sowEnd.getMonth()) {
-                           totalRevenueDays = revenueDays - revenueStopDateSlack;
-                           totalCmiDays = cmiRevenueDays - revenueStopDateSlack;
-                        }
-                        monthRevenue = totalRevenueDays * billHourPerDay * billRatePerHr;
-                        cmiRevenue = totalCmiDays * billHourPerDay * billRatePerHr;
-                     }
-                     monthRevenueObj = { 'month': dateFormat(dateTime.parse(revenueMonth, "MMYYYY", true), "mmm-yyyy"), 'startDate': dateFormat(monthStartDate, "d-mmm-yyyy"), 'endDate': dateFormat(monthEndDate, "d-mmm-yyyy"), 'weekDays': weekDays, 'locationHolidays': locationHoliday, 'selfDays': selfDays, 'bufferDays': buffer, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
+                     monthRevenueObj = { 'month': dateFormat(dateTime.parse(revenueMonth, "MMYYYY", true), "mmm-yyyy"), 'startDate': dateFormat(revenueStartDate, "d-mmm-yyyy"), 'endDate': dateFormat(revenueStopDate, "d-mmm-yyyy"), 'revWorkDays': revWorkDays, 'locationHolidays': locationHoliday, 'selfDays': selfDays, 'bufferDays': buffer, 'monthRevenue': monthRevenue, 'cmiRevenue': cmiRevenue };
                      resolve(monthRevenueObj);
                   }).catch((calcMonthBuffersErr) => { reject(calcMonthBuffersErr); });
                }).catch((countLocationHolidaysErr) => { reject(countLocationHolidaysErr); });

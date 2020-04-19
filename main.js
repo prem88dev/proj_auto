@@ -2,7 +2,7 @@ const express = require("express");
 const dbObj = require("./database");
 const empObj = require("./employee");
 const projObj = require("./project");
-const revObj = require("./revenue");
+const commObj = require("./utility");
 const libApp = express();
 const port = 5454;
 let bp = require('body-parser');
@@ -39,7 +39,7 @@ libApp.get("/getLeave", (req, res) => {
             let ctsEmpId = req.body.ctsEmpId;
             let revenueYear = req.body.revenueYear;
             let monthIndex = req.body.monthIndex;
-            empObj.getPersonalLeave(empEsaLink, ctsEmpId, revenueYear, monthIndex).then((leaves) => {
+            empObj.getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear, monthIndex).then((leaves) => {
                 res.json(leaves);
             }).catch((err) => {
                 errobj = { errcode: 500, error: err }
@@ -109,9 +109,14 @@ libApp.get("/getEmpDtl", (req, res) => {
 });
 
 //get leave days of all associates
-libApp.get("/getAllEmpLeave", (_req, res) => {
-    dbObj.getAllEmployeeLeaves().then((allEmpLeave) => {
-        res.json(allEmpLeave);
+libApp.get("/testGetSelfDays", (req, res) => {
+    let empEsaLink = req.body.empEsaLink;
+    let ctsEmpId = req.body.ctsEmpId;
+    let cityCode = req.body.cityCode;
+    let leaveStart = req.body.leaveStart;
+    let leaveStop = req.body.leaveStop;
+    commObj.countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, leaveStart, leaveStop).then((leaveArr) => {
+        res.json(leaveArr);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         res.json(errobj);

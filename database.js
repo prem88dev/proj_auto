@@ -12,7 +12,7 @@ function initDb(callback) {
    }
 
    /* connect to the db */
-   MongoClient.connect("mongodb://localhost:27017",
+   MongoClient.connect("mongodb://127.0.0.1:27017",
       { useNewUrlParser: true, useUnifiedTopology: true },
       (err, client) => {
          if (err) {

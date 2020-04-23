@@ -85,7 +85,9 @@ function countPersonalWeekdays(empEsaLink, ctsEmpId, cityCode, selfLeaveStart, s
          let refStartDate = new Date(selfLeaveStart);
          refStartDate.setUTCHours(0, 0, 0, 0);
          let refStopDate = new Date(selfLeaveStop);
-         refStopDate.setUTCHours(0, 0, 0, 0);
+         refStopDate.setUTCHours(23, 59, 59, 0);
+         console.log(countPersonalWeekdays.name + " - refStartDate: " + refStartDate);
+         console.log(countPersonalWeekdays.name + " - refStopDate: " + refStopDate);
          dbObj.getDb().collection(empLeaveColl).aggregate([
             {
                $project: {
@@ -183,7 +185,9 @@ function ovrlpngLocHolidays(leaveArr, cityCode) {
          let leaveStart = new Date(leave.startDate);
          leaveStart.setUTCHours(0, 0, 0, 0);
          let leaveStop = new Date(leave.endDate);
-         leaveStop.setUTCHours(0, 0, 0, 0);
+         leaveStop.setUTCHours(23, 59, 59, 0);
+         console.log(ovrlpngLocHolidays.name + " - leaveStart: " + leaveStart);
+         console.log(ovrlpngLocHolidays.name + " - leaveStop: " + leaveStop);
 
          countLocationWeekdays(cityCode, leaveStart, leaveStop).then((locWeekDays) => {
             ovrlpngLocDays += locWeekDays;
@@ -209,7 +213,9 @@ function countLocationWeekdays(cityCode, locLeaveStart, locLeaveStop) {
          let refStartDate = new Date(locLeaveStart);
          refStartDate.setHours(0, 0, 0, 0);
          let refStopDate = new Date(locLeaveStop);
-         refStopDate.setHours(0, 0, 0, 0);
+         refStopDate.setHours(23, 59, 59, 0);
+         console.log(countPersonalWeekdays.name + " - refStartDate: " + refStartDate);
+         console.log(countPersonalWeekdays.name + " - refStopDate: " + refStopDate);
          console
          dbObj.getDb().collection(locLeaveColl).aggregate([
             {
@@ -299,15 +305,15 @@ function countLocationWeekdays(cityCode, locLeaveStart, locLeaveStop) {
 function countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, selfLeaveStart, selfLeaveStop) {
    return new Promise((resolve, reject) => {
       if (empEsaLink === undefined || empEsaLink === "") {
-         reject(countPersonalWeekdays.name + ": Linker ID is not provided");
+         reject(countPersonalWeekdays_test.name + ": Linker ID is not provided");
       } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(countPersonalWeekdays.name + ": Employee ID is not provided");
+         reject(countPersonalWeekdays_test.name + ": Employee ID is not provided");
       } else if (selfLeaveStart === undefined || selfLeaveStart === "") {
-         reject(countPersonalWeekdays.name + ": Leave start date is not provided");
+         reject(countPersonalWeekdays_test.name + ": Leave start date is not provided");
       } else if (selfLeaveStop === undefined || selfLeaveStop === "") {
-         reject(countPersonalWeekdays.name + ": Leave stop date is not provided");
+         reject(countPersonalWeekdays_test.name + ": Leave stop date is not provided");
       } else if (cityCode === undefined || cityCode === "") {
-         reject(countPersonalWeekdays.name + ": City code is not provided");
+         reject(countPersonalWeekdays_test.name + ": City code is not provided");
       }
       console.log(selfLeaveStart);
       console.log(selfLeaveStop);

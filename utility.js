@@ -1,13 +1,15 @@
 const dbObj = require("./database");
+const empObj = require("./employee");
+const locObj = require("./location");
 const empLeaveColl = "emp_leave";
-const locLeaveColl = "loc_holiday";
-const mSecInDay = 86400000;
+const leaveHour = 4;
 
-function computeWeekdaysInLeave(leaveArr) {
+function countWeekdays(leaveArr, callerName) {
+   let funcName = countWeekdays.name;
    let weekdaysInLeave = 0;
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
-         getDaysBetween(leave.startDate, leave.endDate, true).then((weekdays) => {
+         getWeekDaysBetween(leave.startDate, leave.endDate, true, funcName).then((weekdays) => {
             weekdaysInLeave += weekdays;
          });
       });
@@ -15,11 +17,25 @@ function computeWeekdaysInLeave(leaveArr) {
    });
 }
 
-function computeLeaveDays(leaveArr) {
+function countWeekends(leaveArr, callerName) {
+   let funcName = countWeekends.name;
+   let weekendsInLeave = 0;
+   return new Promise(async (resolve, _reject) => {
+      await leaveArr.forEach((leave) => {
+         getWeekEndsBetween(leave.startDate, leave.endDate, true, funcName).then((weekends) => {
+            weekendsInLeave += weekends;
+         });
+      });
+      resolve(weekendsInLeave);
+   });
+}
+
+function countAllDays(leaveArr, callerName) {
+   let funcName = countAllDays.name;
    let leaveDays = 0;
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
-         getDaysBetween(leave.startDate, leave.endDate, false).then((daysBetween) => {
+         getWeekDaysBetween(leave.startDate, leave.endDate, false, funcName).then((daysBetween) => {
             leaveDays += daysBetween;
          });
       });
@@ -27,8 +43,8 @@ function computeLeaveDays(leaveArr) {
    });
 }
 
-/* calculate number of days between */
-function getDaysBetween(startDate, stopDate, getWeekDays) {
+function getWeekEndsBetween(startDate, stopDate, callerName) {
+   let funcName = getWeekEndsBetween.name;
    let daysBetween = 0;
    return new Promise((resolve, _reject) => {
       if (startDate === undefined || stopDate === undefined) {
@@ -38,8 +54,43 @@ function getDaysBetween(startDate, stopDate, getWeekDays) {
          let fromDate = new Date(startDate);
          let toDate = new Date(stopDate);
 
-         fromDate.setUTCHours(0, 0, 0, 0);
-         toDate.setUTCHours(0, 0, 0, 0);
+         fromDate.setHours(0, 0, 0, 0);
+         toDate.setHours(0, 0, 0, 0);
+
+         if (fromDate.getTime() === toDate.getTime()) {
+            let dayOfWeek = fromDate.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+               daysBetween++;
+            }
+         } else {
+            while (fromDate <= toDate) {
+               let dayOfWeek = fromDate.getDay();
+               /* check if the date is neither a Sunday(0) nor a Saturday(6) */
+               if (dayOfWeek === 0 && dayOfWeek === 6) {
+                  daysBetween++;
+               }
+               fromDate.setDate(fromDate.getDate() + 1);
+            }
+         }
+         resolve(daysBetween);
+      }
+   });
+};
+
+/* calculate number of days between */
+function getWeekDaysBetween(startDate, stopDate, getWeekDays, callerName) {
+   let funcName = getWeekDaysBetween.name;
+   let daysBetween = 0;
+   return new Promise((resolve, _reject) => {
+      if (startDate === undefined || stopDate === undefined) {
+         resolve(daysBetween);
+      } else {
+         /* clone date to avoid messing up original data */
+         let fromDate = new Date(startDate);
+         let toDate = new Date(stopDate);
+
+         fromDate.setHours(0, 0, 0, 0);
+         toDate.setHours(0, 0, 0, 0);
 
          if (fromDate.getTime() === toDate.getTime()) {
             let dayOfWeek = fromDate.getDay();
@@ -69,238 +120,113 @@ function getDaysBetween(startDate, stopDate, getWeekDays) {
    });
 };
 
-function countPersonalWeekdays(empEsaLink, ctsEmpId, cityCode, selfLeaveStart, selfLeaveStop) {
-   return new Promise((resolve, reject) => {
-      if (empEsaLink === undefined || empEsaLink === "") {
-         reject(countPersonalWeekdays.name + ": Linker ID is not provided");
-      } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(countPersonalWeekdays.name + ": Employee ID is not provided");
-      } else if (selfLeaveStart === undefined || selfLeaveStart === "") {
-         reject(countPersonalWeekdays.name + ": Leave start date is not provided");
-      } else if (selfLeaveStop === undefined || selfLeaveStop === "") {
-         reject(countPersonalWeekdays.name + ": Leave stop date is not provided");
-      } else if (cityCode === undefined || cityCode === "") {
-         reject(countPersonalWeekdays.name + ": City code is not provided");
-      } else {
-         let refStartDate = new Date(selfLeaveStart);
-         refStartDate.setUTCHours(0, 0, 0, 0);
-         let refStopDate = new Date(selfLeaveStop);
-         refStopDate.setUTCHours(23, 59, 59, 0);
-         console.log(countPersonalWeekdays.name + " - refStartDate: " + refStartDate);
-         console.log(countPersonalWeekdays.name + " - refStopDate: " + refStopDate);
-         dbObj.getDb().collection(empLeaveColl).aggregate([
-            {
-               $project: {
-                  "_id": 1,
-                  "empEsaLink": 3,
-                  "ctsEmpId": 4,
-                  "startDate": 5,
-                  "endDate": 6,
-                  "leaveStart": {
-                     $dateFromParts: {
-                        year: { $toInt: { $substr: ["$startDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$startDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$startDate", 0, 2] } },
-                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
-                     }
-                  },
-                  "leaveStop": {
-                     $dateFromParts: {
-                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
-                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
-                     }
-                  }
-               }
-            },
-            {
-               $match: {
-                  "empEsaLink": empEsaLink,
-                  "ctsEmpId": ctsEmpId,
-                  $or: [
-                     {
-                        $and: [
-                           { "leaveStart": { "$lte": refStartDate } },
-                           { "leaveStop": { "$gte": refStopDate } }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { "leaveStart": { "$lte": refStartDate } },
-                           { "leaveStop": { "$gte": refStartDate } },
-                           { "leaveStop": { "$lte": refStopDate } }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { "leaveStart": { "$gte": refStartDate } },
-                           { "leaveStart": { "$lte": refStopDate } },
-                           { "leaveStop": { "$gte": refStartDate } },
-                           { "leaveStop": { "$lte": refStopDate } }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { "leaveStart": { "$gte": refStartDate } },
-                           { "leaveStart": { "$lte": refStopDate } },
-                           { "leaveStop": { "$gte": refStartDate } },
-                           { "leaveStop": { "$lte": refStopDate } }
-                        ]
-                     }
-                  ]
-               }
-            },
-            {
-               $project: {
-                  "_id": "$_id",
-                  "startDate": "$leaveStart",
-                  "endDate": "$leaveStop"
-               }
-            }
-         ]).toArray((err, leaveArr) => {
-            if (err) {
-               reject("DB error in " + countPersonalWeekdays.name + ": " + err);
-            } else if (leaveArr.length >= 1) {
-               computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
-                  /*console.log("weekdays between [" + leaveArr[0].startDate + "] and [" + leaveArr[0].endDate + "] ===> " + workDaysInLeave);*/
-                  ovrlpngLocHolidays(leaveArr, cityCode).then((ovrlpngLocDays) => {
-                     resolve(workDaysInLeave - ovrlpngLocDays);
-                  });
-               });
-            }
-            else {
-               resolve(0);
-            }
-         });
-      }
-   });
-}
 
-
-function ovrlpngLocHolidays(leaveArr, cityCode) {
-   let ovrlpngLocDays = 0;
+function calcLeaveHours(wrkHrPerDay, selfLeaveArr, locHolArr, leaveStart, leaveStop, callerName) {
+   let funcName = calcLeaveHours.name;
+   let totalWorkHours = 0;
    return new Promise(async (resolve, reject) => {
-      await leaveArr.forEach((leave) => {
-         let leaveStart = new Date(leave.startDate);
-         leaveStart.setUTCHours(0, 0, 0, 0);
-         let leaveStop = new Date(leave.endDate);
-         leaveStop.setUTCHours(23, 59, 59, 0);
-         console.log(ovrlpngLocHolidays.name + " - leaveStart: " + leaveStart);
-         console.log(ovrlpngLocHolidays.name + " - leaveStop: " + leaveStop);
+      let refStartDate = new Date(leaveStart);
+      refStartDate.setUTCHours(0, 0, 0, 0);
+      let refStopDate = new Date(leaveStop);
+      refStopDate.setUTCHours(0, 0, 0, 0);
+      await selfLeaveArr.forEach(async (selfLeave) => {
+         let selfLeaveStart = new Date(selfLeave.startDate);
+         selfLeaveStart.setUTCHours(0, 0, 0, 0);
+         let selfLeaveStop = new Date(selfLeave.stopDate);
+         selfLeaveStop.setUTCHours(0, 0, 0, 0);
 
-         countLocationWeekdays(cityCode, leaveStart, leaveStop).then((locWeekDays) => {
-            ovrlpngLocDays += locWeekDays;
+         let calcStart = new Date(selfLeaveStart);
+         let calcStop = new Date(selfLeaveStop);
+         if (selfLeaveStart.getTime() < refStartDate.getTime()) {
+            calcStart = refStartDate;
+         }
+         if (selfLeaveStop.getTime() > refStopDate.getTime()) {
+            calcStop = refStopDate;
+         }
+         calcStart.setUTCHours(0, 0, 0, 0);
+         calcStop.setUTCHours(0, 0, 0, 0);
+
+         getWeekDaysBetween(calcStart, calcStop, true, funcName).then(async (workDaysBetween) => {
+            if (selfLeave.halfDayInd === 1) {
+               totalWorkHours += (wrkHrPerDay - leaveHour) * workDaysBetween;
+            }
+            await locHolArr.forEach((locHol) => {
+               let locHolStart = new Date(locHol.startDate);
+               locHolStart.setUTCHours(0, 0, 0, 0);
+               let locHolStop = new Date(locHol.stopDate);
+               locHolStop.setUTCHours(0, 0, 0, 0);
+
+               if (selfLeaveStart.getTime() >= locHolStart.getTime()) {
+                  effLeaveStart = selfLeaveStart
+               } else if (locHolStart.getTime() >= selfLeaveStart.getTime()) {
+                  effLeaveStart = locHolStart;
+               }
+
+               if (selfLeaveStop.getTime() >= locHolStop.getTime()) {
+                  effLeaveStop = selfLeaveStop;
+               } else if (locHolStop.getTime() >= selfLeaveStop.getTime()) {
+                  effLeaveStop = locHolStop;
+               }
+
+               effLeaveStart.setUTCHours(0, 0, 0, 0);
+               effLeaveStop.setUTCHours(0, 0, 0, 0);
+
+               if (refStartDate > effLeaveStart) {
+                  effLeaveStart = refStartDate;
+               }
+
+               if (effLeaveStop < refStopDate) {
+                  effLeaveStop = refStopDate;
+               }
+
+               effLeaveStart.setUTCHours(0, 0, 0, 0);
+               effLeaveStop.setUTCHours(0, 0, 0, 0);
+
+               if (selfLeave.halfDayInd === 1 && locHol.halfDayInd === 1) {
+                  totalWorkHours += (wrkHrPerDay / 2);
+               } else {
+                  totalWorkHours += wrkHrPerDay;
+               }
+            });
          });
       });
-      console.log(leaveArr);
-      console.log(ovrlpngLocDays);
-      console.log();
-      resolve(ovrlpngLocDays);
+      resolve(totalWorkHours);
    });
 }
 
-
-function countLocationWeekdays(cityCode, locLeaveStart, locLeaveStop) {
+/*
+function calcSelfAndLocLeaveHours(empEsaLink, ctsEmpId, wrkHrPerDay, cityCode, leaveStart, leaveStop, callerName) {
+   let leaveHours = 0;
+   let funcName = calcSelfAndLocLeaveHours.name;
    return new Promise((resolve, reject) => {
-      if (cityCode === undefined || cityCode === "") {
-         reject(countLocationHolidays.name + ": City code is not provided");
-      } else if (locLeaveStart === undefined || locLeaveStart === "") {
-         reject(countLocationHolidays.name + ": Leave start date is not provided");
-      } else if (locLeaveStop === undefined || locLeaveStop === "") {
-         reject(countLocationHolidays.name + ": Leave end date is not provided");
+      if (empEsaLink === undefined || empEsaLink === "") {
+         reject(getEffectiveLeaveDays.name + ": Linker ID is not provided");
+      } else if (ctsEmpId === undefined || ctsEmpId === "") {
+         reject(getEffectiveLeaveDays.name + ": Employee ID is not provided");
+      } else if (wrkHrPerDay === undefined || wrkHrPerDay === "") {
+         reject(getEffectiveLeaveDays.name + ": Billing hour per day is not provided");
+      } else if (cityCode === undefined || cityCode === "") {
+         reject(getEffectiveLeaveDays.name + ": Work city code is not provided");
+      } else if (leaveStart === undefined || leaveStart === "") {
+         reject(getEffectiveLeaveDays.name + ": Leave start date is not provided");
+      } else if (leaveStop === undefined || leaveStop) {
+         reject(getEffectiveLeaveDays.name + ": Leave stop date is not provided");
       } else {
-         let refStartDate = new Date(locLeaveStart);
-         refStartDate.setHours(0, 0, 0, 0);
-         let refStopDate = new Date(locLeaveStop);
-         refStopDate.setHours(23, 59, 59, 0);
-         console.log(countPersonalWeekdays.name + " - refStartDate: " + refStartDate);
-         console.log(countPersonalWeekdays.name + " - refStopDate: " + refStopDate);
-         console
-         dbObj.getDb().collection(locLeaveColl).aggregate([
-            {
-               $project: {
-                  "_id": 1,
-                  "cityCode": 2,
-                  "startDate": 3,
-                  "endDate": 4,
-                  "leaveStart": {
-                     $dateFromParts: {
-                        year: { $toInt: { $substr: ["$startDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$startDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$startDate", 0, 2] } },
-                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
-                     }
-                  },
-                  "leaveStop": {
-                     $dateFromParts: {
-                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
-                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
-                     }
-                  }
-               }
-            },
-            {
-               $match: {
-                  "cityCode": cityCode,
-                  $or: [
-                     {
-                        $and: [
-                           { "leaveStart": { "$lte": refStartDate } },
-                           { "leaveStop": { "$gte": refStopDate } }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { "leaveStart": { "$lte": refStartDate } },
-                           { "leaveStop": { "$gte": refStartDate } },
-                           { "leaveStop": { "$lte": refStopDate } }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { "leaveStart": { "$gte": refStartDate } },
-                           { "leaveStart": { "$lte": refStopDate } },
-                           { "leaveStop": { "$gte": refStartDate } },
-                           { "leaveStop": { "$lte": refStopDate } }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { "leaveStart": { "$gte": refStartDate } },
-                           { "leaveStart": { "$lte": refStopDate } },
-                           { "leaveStop": { "$gte": refStartDate } },
-                           { "leaveStop": { "$lte": refStopDate } }
-                        ]
-                     }
-                  ]
-               }
-            },
-            {
-               $project: {
-                  "_id": "$_id",
-                  "startDate": "$leaveStart",
-                  "endDate": "$leaveStop"
-               }
-            }
-         ]).toArray((err, leaveArr) => {
-            if (err) {
-               reject("DB error in " + countLocationWeekdays.name + ": " + err);
-            } else if (leaveArr.length >= 1) {
-               computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
-                  resolve(workDaysInLeave);
+         empObj.getSelfLeaveDates(empEsaLink, ctsEmpId, leaveStart, leaveStop, funcName).then((selfLeaveArr) => {
+            countWeekdays(selfLeaveArr).then((selfLeaveWorkdays) => {
+               leaveHours = (selfLeaveWorkdays + splWrkWeekends) * wrkHrPerDay;
+
+               locObj.getLocHolDates(cityCode, leaveStart, leaveStop, funcName).then((locHolArr) => {
+                  splWrkObj.getLocSplWrkDates(cityCode, leaveStart, leaveStop, funcName).then((locSplWrkArr) => {
+                     resolve(locHolArr)
+                  });
                });
-            } else {
-               resolve(0);
-            }
+            });
          });
       }
    });
 }
-
-
+*/
 
 function countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, selfLeaveStart, selfLeaveStop) {
    return new Promise((resolve, reject) => {
@@ -314,114 +240,115 @@ function countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, selfLeaveSta
          reject(countPersonalWeekdays_test.name + ": Leave stop date is not provided");
       } else if (cityCode === undefined || cityCode === "") {
          reject(countPersonalWeekdays_test.name + ": City code is not provided");
-      }
-      console.log(selfLeaveStart);
-      console.log(selfLeaveStop);
-      dbObj.getDb().collection(empLeaveColl).aggregate([
-         {
-            $project: {
-               "_id": "$_id",
-               "empEsaLink": "$empEsaLink",
-               "ctsEmpId": "$ctsEmpId",
-               "startDate": "$startDate",
-               "endDate": "$endDate",
-               "leaveStart": {
-                  $dateFromParts: {
-                     year: { $toInt: { $substr: ["$startDate", 4, -1] } },
-                     month: { $toInt: { $substr: ["$startDate", 2, 2] } },
-                     day: { $toInt: { $substr: ["$startDate", 0, 2] } },
-                     hour: 0, minute: 0, second: 0, millisecond: 0
-                  }
-               },
-               "leaveStop": {
-                  $dateFromParts: {
-                     year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                     month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                     day: { $toInt: { $substr: ["$endDate", 0, 2] } },
-                     hour: 0, minute: 0, second: 0, millisecond: 0
-                  }
-               },
-               "inputStart": {
-                  $dateFromString: {
-                     dateString: selfLeaveStart
-                  }
-               },
-               "inputStop": {
-                  $dateFromString: {
-                     dateString: selfLeaveStop
-                  }
-               }
-            }
-         },
-         {
-            $match: {
-               "empEsaLink": empEsaLink,
-               "ctsEmpId": ctsEmpId,
-               $expr: {
-                  $or: [
-                     {
-                        $and: [
-                           { $lte: ["$leaveStart", "$inputStart"] },
-                           { $gte: ["$leaveStop", "$inputStop"] }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { $lte: ["$leaveStart", "$inputStart"] },
-                           { $gte: ["$leaveStop", "$inputStart"] },
-                           { $lte: ["$leaveStop", "$inputStop"] }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { $gte: ["$leaveStart", "$inputStart"] },
-                           { $lte: ["$leaveStart", "$inputStop"] },
-                           { $gte: ["$leaveStop", "$inputStart"] },
-                           { $lte: ["$leaveStop", "$inputStop"] }
-                        ]
-                     },
-                     {
-                        $and: [
-                           { $gte: ["$leaveStart", "$inputStart"] },
-                           { $lte: ["$leaveStart", "$inputStop"] },
-                           { $gte: ["$leaveStop", "$inputStart"] },
-                           { $gte: ["$leaveStop", "$inputStop"] }
-                        ]
+      } else {
+         dbObj.getDb().collection(empLeaveColl).aggregate([
+            {
+               $project: {
+                  "_id": "$_id",
+                  "empEsaLink": "$empEsaLink",
+                  "ctsEmpId": "$ctsEmpId",
+                  "startDate": "$startDate",
+                  "endDate": "$endDate",
+                  "leaveStart": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$startDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$startDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$startDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0
                      }
-                  ]
+                  },
+                  "leaveStop": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0
+                     }
+                  },
+                  "inputStart": {
+                     $dateFromString: {
+                        dateString: selfLeaveStart
+                     }
+                  },
+                  "inputStop": {
+                     $dateFromString: {
+                        dateString: selfLeaveStop
+                     }
+                  }
                }
+            },
+            {
+               $match: {
+                  "empEsaLink": empEsaLink,
+                  "ctsEmpId": ctsEmpId,
+                  $expr: {
+                     $or: [
+                        {
+                           $and: [
+                              { $lte: ["$leaveStart", "$inputStart"] },
+                              { $gte: ["$leaveStop", "$inputStop"] }
+                           ]
+                        },
+                        {
+                           $and: [
+                              { $lte: ["$leaveStart", "$inputStart"] },
+                              { $gte: ["$leaveStop", "$inputStart"] },
+                              { $lte: ["$leaveStop", "$inputStop"] }
+                           ]
+                        },
+                        {
+                           $and: [
+                              { $gte: ["$leaveStart", "$inputStart"] },
+                              { $lte: ["$leaveStart", "$inputStop"] },
+                              { $gte: ["$leaveStop", "$inputStart"] },
+                              { $lte: ["$leaveStop", "$inputStop"] }
+                           ]
+                        },
+                        {
+                           $and: [
+                              { $gte: ["$leaveStart", "$inputStart"] },
+                              { $lte: ["$leaveStart", "$inputStop"] },
+                              { $gte: ["$leaveStop", "$inputStart"] },
+                              { $gte: ["$leaveStop", "$inputStop"] }
+                           ]
+                        }
+                     ]
+                  }
+               }
+            },
+            {
+               $project: {
+                  "_id": "$_id",
+                  "empEsaLink": "$empEsaLink",
+                  "ctsEmpId": "$ctsEmpId",
+                  "startDate": "$startDate",
+                  "endDate": "$endDate",
+                  "leaveStart": "$leaveStart",
+                  "leaveStop": "$leaveStop",
+                  "inputStart": "$inputStart",
+                  "inputStop": "$inputStop"
+               }
+            },
+         ]).toArray((err, leaveArr) => {
+            if (err) {
+               reject(err);
+            } else {
+               resolve(leaveArr);
             }
-         },
-         {
-            $project: {
-               "_id": "$_id",
-               "empEsaLink": "$empEsaLink",
-               "ctsEmpId": "$ctsEmpId",
-               "startDate": "$startDate",
-               "endDate": "$endDate",
-               "leaveStart": "$leaveStart",
-               "leaveStop": "$leaveStop",
-               "inputStart": "$inputStart",
-               "inputStop": "$inputStop"
-            }
-         },
-      ]).toArray((err, leaveArr) => {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(leaveArr);
-         }
-      });
+         });
+      }
    });
 }
 
 
 
 module.exports = {
-   computeWeekdaysInLeave,
-   computeLeaveDays,
-   getDaysBetween,
-   countPersonalWeekdays,
-   countLocationWeekdays,
+   countWeekdays,
+   countAllDays,
+   countWeekends,
+   calcLeaveHours,
+   getWeekDaysBetween,
+   getWeekEndsBetween,
+   /*calcSelfAndLocLeaveHours,*/
    countPersonalWeekdays_test
 }

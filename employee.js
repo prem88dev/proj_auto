@@ -2,6 +2,7 @@ const dbObj = require("./database");
 const locObj = require("./location");
 const commObj = require("./utility");
 const revObj = require("./revenue");
+const splWrkObj = require("./specialWorkday");
 const ObjectId = require("mongodb").ObjectID;
 const dateFormat = require("dateformat");
 const empLeaveColl = "emp_leave";
@@ -69,31 +70,32 @@ function listEmployeeInProj(esaId) {
 }
 
 
-function getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear) {
+function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
    return new Promise((resolve, reject) => {
+      let funcName = getYearlySelfLeaves.name;
       if (empEsaLink === undefined || empEsaLink === "") {
-         reject(getYearlySelfDays.name + ": Linker ID is not provided");
+         reject(funcName + ": Linker ID is not provided");
       } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(getYearlySelfDays.name + ": Employee ID is not provided");
+         reject(funcName + ": Employee ID is not provided");
       } else if (revenueYear === undefined || revenueYear === "") {
-         reject(getYearlySelfDays.name + ": Revenue year is not provided");
+         reject(funcName + ": Revenue year is not provided");
       }
-      let leaveYear = parseInt(revenueYear, 10);
-      let revenueStart = new Date(leaveYear, 0, 2);
+      let calcYear = parseInt(revenueYear, 10);
+      let revenueStart = new Date(calcYear, 0, 2);
       revenueStart.setUTCHours(0, 0, 0, 0);
-      let revenueEnd = new Date(leaveYear, 12, 1);
-      revenueEnd.setUTCHours(0, 0, 0, 0);
+      let revenueStop = new Date(calcYear, 12, 1);
+      revenueStop.setUTCHours(0, 0, 0, 0);
       dbObj.getDb().collection(empLeaveColl).aggregate([
          {
             $project: {
-               "_id": 1,
-               "esaId": 2,
-               "empEsaLink": 3,
-               "ctsEmpId": 4,
-               "startDate": 5,
-               "endDate": 6,
-               "days": 7,
-               "reason": 8,
+               "_id": "$_id",
+               "esaId": "$esaId",
+               "empEsaLink": "$empEsaLink",
+               "ctsEmpId": "$ctsEmpId",
+               "startDate": "$startDate",
+               "endDate": "$endDate",
+               "days": "$days",
+               "reason": "$reason",
                "leaveStart": {
                   $dateFromParts: {
                      year: { $toInt: { $substr: ["$startDate", 4, -1] } },
@@ -120,30 +122,30 @@ function getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear) {
                   {
                      $and: [
                         { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
+                        { "leaveEnd": { "$gte": revenueStop } }
                      ]
                   },
                   {
                      $and: [
                         { "leaveStart": { "$lte": revenueStart } },
                         { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
+                        { "leaveEnd": { "$lte": revenueStop } }
                      ]
                   },
                   {
                      $and: [
                         { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueEnd } },
+                        { "leaveStart": { "$lte": revenueStop } },
                         { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueEnd } }
+                        { "leaveEnd": { "$lte": revenueStop } }
                      ]
                   },
                   {
                      $and: [
                         { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueEnd } },
+                        { "leaveStart": { "$lte": revenueStop } },
                         { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueEnd } }
+                        { "leaveEnd": { "$gte": revenueStop } }
                      ]
                   }
                ]
@@ -154,59 +156,10 @@ function getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear) {
                "_id": "$_id",
                "startDate": "$leaveStart",
                "endDate": "$leaveEnd",
-               "days": {
-                  $switch: {
-                     branches: [
-                        { case: { $eq: ["$leaveStart", "$leaveEnd"] }, then: 1 },
-                        {
-                           case: {
-                              $and: [
-                                 { "$lte": ["$leaveStart", revenueStart] },
-                                 { "$gte": ["$leaveEnd", revenueEnd] }
-                              ]
-                           }, then: {
-                              $divide: [{ $subtract: [revenueEnd, revenueStart] }, mSecInDay]
-                           }
-                        },
-                        {
-                           case: {
-                              $and: [
-                                 { "$lte": ["$leaveStart", revenueStart] },
-                                 { "$gte": ["$leaveEnd", revenueStart] },
-                                 { "$lte": ["$leaveEnd", revenueEnd] }
-                              ]
-                           }, then: {
-                              $divide: [{ $subtract: ["$leaveEnd", revenueStart] }, mSecInDay]
-                           }
-                        },
-                        {
-                           case: {
-                              $and: [
-                                 { "$gte": ["$leaveStart", revenueStart] },
-                                 { "$lte": ["$leaveStart", revenueEnd] },
-                                 { "$gte": ["$leaveEnd", revenueStart] },
-                                 { "$lte": ["$leaveEnd", revenueEnd] }
-                              ]
-                           }, then: {
-                              $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay]
-                           }
-                        },
-                        {
-                           case: {
-                              $and: [
-                                 { "$gte": ["$leaveStart", revenueStart] },
-                                 { "$lte": ["$leaveStart", revenueEnd] },
-                                 { "$gte": ["$leaveEnd", revenueStart] },
-                                 { "$gte": ["$leaveEnd", revenueEnd] }
-                              ]
-                           }, then: {
-                              $divide: [{ $subtract: [revenueEnd, "$leaveStart"] }, mSecInDay]
-                           }
-                        }
-                     ]
-                  }
-               },
-               "reason": "$reason"
+               "days": { $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] },
+               "reason": "$reason",
+               "revenueStart": revenueStart,
+               "revenueStop": revenueStop
             }
          },
          {
@@ -243,10 +196,10 @@ function getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear) {
          }
       ]).toArray((err, leaveArr) => {
          if (err) {
-            reject("DB error in " + getYearlySelfDays.name + ": " + err);
+            reject("DB error in " + funcName + ": " + err);
          } else if (leaveArr.length >= 1) {
-            commObj.computeLeaveDays(leaveArr).then((allDaysInLeave) => {
-               commObj.computeWeekdaysInLeave(leaveArr).then((workDaysInLeave) => {
+            commObj.countAllDays(leaveArr, funcName).then((allDaysInLeave) => {
+               commObj.countWeekdays(leaveArr, funcName).then((workDaysInLeave) => {
                   leaveArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
                   resolve(leaveArr);
                });
@@ -260,7 +213,106 @@ function getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear) {
 }
 
 
-
+function getSelfLeaveDates(empEsaLink, ctsEmpId, selfLeaveStart, selfLeaveStop, callerName) {
+   return new Promise((resolve, reject) => {
+      if (empEsaLink === undefined || empEsaLink === "") {
+         reject(getSelfLeaveDates.name + ": Linker ID is not provided");
+      } else if (ctsEmpId === undefined || ctsEmpId === "") {
+         reject(getSelfLeaveDates.name + ": Employee ID is not provided");
+      } else if (selfLeaveStart === undefined || selfLeaveStart === "") {
+         reject(getSelfLeaveDates.name + ": Personal leave start date is not provided");
+      } else if (selfLeaveStop === undefined || selfLeaveStop === "") {
+         reject(getSelfLeaveDates.name + ": Personal leave stop date is not provided");
+      } else {
+         let refStartDate = new Date(selfLeaveStart);
+         refStartDate.setUTCHours(0, 0, 0, 0);
+         let refStopDate = new Date(selfLeaveStop);
+         refStopDate.setUTCHours(0, 0, 0, 0);
+         dbObj.getDb().collection(empLeaveColl).aggregate([
+            {
+               $project: {
+                  "_id": 1,
+                  "empEsaLink": 3,
+                  "ctsEmpId": 4,
+                  "startDate": 5,
+                  "endDate": 6,
+                  "leaveStart": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$startDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$startDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$startDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                     }
+                  },
+                  "leaveStop": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                     }
+                  }
+               }
+            },
+            {
+               $match: {
+                  "empEsaLink": empEsaLink,
+                  "ctsEmpId": ctsEmpId,
+                  $or: [
+                     {
+                        $and: [
+                           { "leaveStart": { $lte: refStartDate } },
+                           { "leaveStop": { $gte: refStopDate } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { $lte: refStartDate } },
+                           { "leaveStop": { $gte: refStartDate } },
+                           { "leaveStop": { $lte: refStopDate } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { $gte: refStartDate } },
+                           { "leaveStart": { $lte: refStopDate } },
+                           { "leaveStop": { $gte: refStartDate } },
+                           { "leaveStop": { $lte: refStopDate } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { $gte: refStartDate } },
+                           { "leaveStart": { $lte: refStopDate } },
+                           { "leaveStop": { $gte: refStartDate } },
+                           { "leaveStop": { $lte: refStopDate } }
+                        ]
+                     }
+                  ]
+               }
+            },
+            {
+               $project: {
+                  "_id": "$_id",
+                  "funcName": getSelfLeaveDates.name,
+                  "callerName": callerName,
+                  "selfLeaveStart": "$leaveStart",
+                  "selfLeaveStop": "$leaveEnd",
+                  "days": { $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] },
+                  "refStartDate": refStartDate,
+                  "refStopDate": refStopDate
+               }
+            }
+         ]).toArray((err, selfLeaveArr) => {
+            if (err) {
+               reject("DB error in " + getSelfLeaveDates.name + ": " + err);
+            } else {
+               resolve(selfLeaveArr);
+            }
+         });
+      }
+   });
+}
 
 
 /*
@@ -282,20 +334,20 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
       } else if (revenueYear === undefined || revenueYear === "") {
          reject(getBuffer.name + ": Revenue year is not provided");
       }
-      let bufferYear = parseInt(revenueYear, 10);
-      let revenueStart = new Date(bufferYear, 0, 1);
+      let calcYear = parseInt(revenueYear, 10);
+      let revenueStart = new Date(calcYear, 0, 2);
       revenueStart.setUTCHours(0, 0, 0, 0);
-      let revenueEnd = new Date(bufferYear, 12, 0);
-      revenueEnd.setUTCHours(0, 0, 0, 0);
+      let revenueStop = new Date(calcYear, 12, 1);
+      revenueStop.setUTCHours(0, 0, 0, 0);
       dbObj.getDb().collection(empBuffer).aggregate([
          {
             $project: {
-               "_id": 1,
-               "empEsaLink": 3,
-               "ctsEmpId": 4,
-               "month": 5,
-               "days": 6,
-               "reason": 7,
+               "_id": "$_id",
+               "empEsaLink": "$empEsaLink",
+               "ctsEmpId": "$ctsEmpId",
+               "month": "$month",
+               "days": "$days",
+               "reason": "$reason",
                "bufferDate": {
                   $dateFromParts: {
                      year: { $toInt: { $substr: ["$month", 2, -1] } },
@@ -311,7 +363,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
                   { "empEsaLink": { "$eq": empEsaLink } },
                   { "ctsEmpId": { "$eq": ctsEmpId } },
                   { "bufferDate": { "$gte": revenueStart } },
-                  { "bufferDate": { "$lte": revenueEnd } }
+                  { "bufferDate": { "$lte": revenueStop } }
                ]
             }
          },
@@ -320,7 +372,9 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
                "_id": "$_id",
                "month": "$month",
                "days": { $toInt: "$days" },
-               "reason": "$reason"
+               "reason": "$reason",
+               "revenueStart": revenueStart,
+               "revenueStop": revenueStop
             }
          },
          {
@@ -366,11 +420,13 @@ function getEmployeeProjection(recordId, revenueYear) {
          reject(getEmployeeProjection.name + ": Record id is not provided");
       }
 
+      let funcName = getEmployeeProjection.name;
       let recordObjId = new ObjectId(recordId);
-      let revenueStart = new Date(revenueYear, 0, 2);
+      let intRevenueYear = parseInt(revenueYear, 10);
+      let revenueStart = new Date(intRevenueYear, 0, 2);
       revenueStart.setUTCHours(0, 0, 0, 0);
-      let revenueEnd = new Date(revenueYear, 12, 1);
-      revenueEnd.setUTCHours(0, 0, 0, 0);
+      let revenueStop = new Date(intRevenueYear, 12, 1);
+      revenueStop.setUTCHours(0, 0, 0, 0);
       db = dbObj.getDb();
       db.collection(empProjColl).aggregate([
          {
@@ -401,26 +457,28 @@ function getEmployeeProjection(recordId, revenueYear) {
             }
          },
          {
-            $group: {
+            $project: {
                "_id": "$_id",
-               "esaId": { "$first": { $toInt: "$empEsaProj.esaId" } },
-               "esaDesc": { "$first": "$empEsaProj.esaDesc" },
-               "projName": { "$first": "$projName" },
-               "ctsEmpId": { "$first": { $toInt: "$ctsEmpId" } },
-               "empFname": { "$first": "$empFname" },
-               "empMname": { "$first": "$empMname" },
-               "empLname": { "$first": "$empLname" },
-               "lowesUid": { "$first": "$lowesUid" },
-               "deptName": { "$first": "$deptName" },
-               "sowStartDate": { "$first": "$sowStartDate" },
-               "sowEndDate": { "$first": "$sowEndDate" },
-               "foreseenEndDate": { "$first": "$foreseenEndDate" },
-               "cityCode": { "$first": "$empEsaLoc.cityCode" },
-               "cityName": { "$first": "$empEsaLoc.cityName" },
-               "wrkHrPerDay": { "$first": { $toInt: "$wrkHrPerDay" } },
-               "billRatePerHr": { "$first": { $toInt: "$billRatePerHr" } },
-               "currency": { "$first": "$empEsaProj.currency" },
-               "empEsaLink": { "$first": "$empEsaLink" }
+               "esaId": { $toInt: "$empEsaProj.esaId" },
+               "esaDesc": "$empEsaProj.esaDesc",
+               "projName": "$projName",
+               "ctsEmpId": { $toInt: "$ctsEmpId" },
+               "empFname": "$empFname",
+               "empMname": "$empMname",
+               "empLname": "$empLname",
+               "lowesUid": "$lowesUid",
+               "deptName": "$deptName",
+               "sowStartDate": "$sowStartDate",
+               "sowEndDate": "$sowEndDate",
+               "foreseenEndDate": "$foreseenEndDate",
+               "cityCode": "$empEsaLoc.cityCode",
+               "cityName": "$empEsaLoc.cityName",
+               "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
+               "billRatePerHr": { $toInt: "$billRatePerHr" },
+               "currency": "$empEsaProj.currency",
+               "empEsaLink": "$empEsaLink",
+               "revenueStart": revenueStart,
+               "revenueStop": revenueStop
             }
          },
          {
@@ -483,37 +541,40 @@ function getEmployeeProjection(recordId, revenueYear) {
          }
       ]).toArray((err, empDtl) => {
          if (err) {
-            reject("DB error in " + getEmployeeProjection.name + " function: " + err);
+            reject("DB error in " + funcName + " function: " + err);
          } else if (empDtl.length === 1) {
             let empEsaLink = empDtl[0].empEsaLink;
-            let ctsEmpId = `${empDtl[0].ctsEmpId}`;
+            let strCtsEmpId = `${empDtl[0].ctsEmpId}`;
             let cityCode = empDtl[0].cityCode;
-            getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear).then((leaveArr) => {
-               empDtl.push({ "leaves": leaveArr });
-               getBuffer(empEsaLink, ctsEmpId, revenueYear).then((bufferArr) => {
+            getYearlySelfLeaves(empEsaLink, strCtsEmpId, intRevenueYear, funcName).then((selfLeaveArr) => {
+               empDtl.push({ "leaves": selfLeaveArr });
+               getBuffer(empEsaLink, strCtsEmpId, intRevenueYear, funcName).then((bufferArr) => {
                   empDtl.push({ "buffers": bufferArr });
-                  locObj.getLocationLeave(cityCode, revenueYear).then((pubLeaveArr) => {
-                     empDtl.push({ "publicHolidays": pubLeaveArr });
-                     revObj.calcEmpRevenue(empDtl, revenueYear).then((revenueArr) => {
-                        empDtl.push({ "revenue": revenueArr });
-                        if (leaveArr.length === 0) {
-                           empDtl[1].leaves.push("No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueEnd, "d-mmm-yyyy"));
-                        }
-                        if (bufferArr.length === 0) {
-                           empDtl[2].buffers.push("No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueEnd, "d-mmm-yyyy"));
-                        }
-                        if (pubLeaveArr.length === 0) {
-                           empDtl[3].publicHolidays.push("No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueEnd, "d-mmm-yyyy"));
-                        }
-                        resolve(empDtl);
-                     }).catch((calcEmpRevenueErr) => { reject(calcEmpRevenueErr); });
-                  }).catch((getLocationLeaveErr) => { reject(getLocationLeaveErr); });
+                  locObj.getYearlyLocationLeaves(cityCode, intRevenueYear, funcName).then((locHolArr) => {
+                     empDtl.push({ "publicHolidays": locHolArr });
+                     splWrkObj.getSplWrkDays(empEsaLink, strCtsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
+                        empDtl.push({ "specialWorkDays": splWrkArr });
+                        revObj.calcEmpRevenue(empDtl, intRevenueYear).then((revenueArr) => {
+                           empDtl.push({ "revenue": revenueArr });
+                           if (selfLeaveArr.length === 0) {
+                              empDtl[1].leaves.push("No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy"));
+                           }
+                           if (bufferArr.length === 0) {
+                              empDtl[2].buffers.push("No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy"));
+                           }
+                           if (locHolArr.length === 0) {
+                              empDtl[3].publicHolidays.push("No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy"));
+                           }
+                           resolve(empDtl);
+                        }).catch((calcEmpRevenueErr) => { reject(calcEmpRevenueErr); });
+                     }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
+                  }).catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
                }).catch((getBufferErr) => { reject(getBufferErr); });
-            }).catch((getYearlySelfDaysErr) => { reject(getYearlySelfDaysErr); });
+            }).catch((getYearlySelfLeavesErr) => { reject(getYearlySelfLeavesErr); });
          } else if (empDtl.length === 0) {
-            reject(getEmployeeProjection.name + ": No records found")
+            reject(funcName + ": No records found")
          } else if (empDtl.length > 1) {
-            reject(getEmployeeProjection.name + ": More than one record found");
+            reject(funcName + ": More than one record found");
          }
       });
    });
@@ -524,7 +585,8 @@ function getEmployeeProjection(recordId, revenueYear) {
 
 module.exports = {
    listEmployeeInProj,
-   getYearlySelfDays,
+   getYearlySelfLeaves,
+   getSelfLeaveDates,
    getBuffer,
    getEmployeeProjection
 }

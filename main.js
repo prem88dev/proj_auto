@@ -135,6 +135,5 @@ try {
         });
     });
 } catch (error) {
-    console.log("Error in starting server: ");
-    console.log(error);
+    console.log("Error in starting server: " + error);
 }

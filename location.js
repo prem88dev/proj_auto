@@ -1,6 +1,7 @@
 const dbObj = require('./database');
 const commObj = require('./utility');
 const locLeaveColl = "loc_holiday";
+const mSecInDay = 86400000;
 
 
 function getYearlyLocationLeaves(cityCode, revenueYear) {
@@ -19,21 +20,21 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
          dbObj.getDb().collection(locLeaveColl).aggregate([
             {
                $project: {
-                  "_id": 1,
-                  "cityCode": 2,
-                  "startDate": 3,
-                  "endDate": 4,
-                  "days": 5,
-                  "description": 6,
+                  "_id": "$_id",
+                  "cityCode": "$cityCode",
+                  "startDate": "$startDate",
+                  "stopDate": "$stopDate",
+                  "halfDay": "$halfDay",
+                  "description": "$description",
                   "leaveStart": {
                      $dateFromString: {
                         dateString: "$startDate",
                         format: "%d%m%Y"
                      }
                   },
-                  "leaveEnd": {
+                  "leaveStop": {
                      $dateFromString: {
-                        dateString: "$endDate",
+                        dateString: "$stopDate",
                         format: "%d%m%Y"
                      }
                   }
@@ -46,22 +47,22 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
                      {
                         $and: [
                            { "leaveStart": { "$lte": revenueStart } },
-                           { "leaveEnd": { "$gte": revenueStop } }
+                           { "leaveStop": { "$gte": revenueStop } }
                         ]
                      },
                      {
                         $and: [
                            { "leaveStart": { "$lte": revenueStart } },
-                           { "leaveEnd": { "$gte": revenueStart } },
-                           { "leaveEnd": { "$lte": revenueStop } }
+                           { "leaveStop": { "$gte": revenueStart } },
+                           { "leaveStop": { "$lte": revenueStop } }
                         ]
                      },
                      {
                         $and: [
                            { "leaveStart": { "$gte": revenueStart } },
                            { "leaveStart": { "$lte": revenueStop } },
-                           { "leaveEnd": { "$gte": revenueStart } },
-                           { "leaveEnd": { "$lte": revenueStop } }
+                           { "leaveStop": { "$gte": revenueStart } },
+                           { "leaveStop": { "$lte": revenueStop } }
                         ]
                      }
                   ]
@@ -71,11 +72,10 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
                $project: {
                   "_id": "$_id",
                   "startDate": "$leaveStart",
-                  "endDate": "$leaveEnd",
-                  "days": { $toInt: "$days" },
-                  "description": "$description",
-                  "revenueStart": revenueStart,
-                  "revenueStop": revenueStop
+                  "stopDate": "$leaveStop",
+                  "days": { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] },
+                  "halfDay": "$halfDay",
+                  "description": "$description"
                }
             },
             {
@@ -92,15 +92,15 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
                         }
                      }
                   },
-                  endDate: {
+                  stopDate: {
                      $let: {
                         vars: {
                            monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                         },
                         in: {
-                           $concat: [{ $toString: { $dayOfMonth: "$endDate" } }, "-",
-                           { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
-                           { $toString: { $year: "$endDate" } }]
+                           $concat: [{ $toString: { $dayOfMonth: "$stopDate" } }, "-",
+                           { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
+                           { $toString: { $year: "$stopDate" } }]
                         }
                      }
                   }
@@ -108,7 +108,7 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
             }
          ]).toArray((err, locLeaveArr) => {
             if (err) {
-               reject("DB error in " + getLocationLeave.name + " function: " + err);
+               reject("DB error in " + funcName + " function: " + err);
             } else if (locLeaveArr.length >= 1) {
                commObj.countAllDays(locLeaveArr, funcName).then((allDaysInLeave) => {
                   commObj.countWeekdays(locLeaveArr, funcName).then((workDaysInLeave) => {
@@ -142,10 +142,12 @@ function getLocHolDates(cityCode, locHolStart, locHolStop, callerName) {
          dbObj.getDb().collection(locLeaveColl).aggregate([
             {
                $project: {
-                  "_id": 1,
-                  "cityCode": 2,
-                  "startDate": 3,
-                  "endDate": 4,
+                  "_id": "$_id",
+                  "cityCode": "$cityCode",
+                  "startDate": "$startDate",
+                  "stopDate": "$stopDate",
+                  "halfDay": "$halfDay",
+                  "description": "$description",
                   "leaveStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$startDate", 4, -1] } },
@@ -156,9 +158,9 @@ function getLocHolDates(cityCode, locHolStart, locHolStop, callerName) {
                   },
                   "leaveStop": {
                      $dateFromParts: {
-                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   }
@@ -203,17 +205,43 @@ function getLocHolDates(cityCode, locHolStart, locHolStop, callerName) {
             {
                $group: {
                   "_id": "$_id",
-                  "funcName": getLocHolDates.name,
-                  "callerName": callerName,
-                  "locHolStart": "$leaveStart",
-                  "locHolStop": "$leaveEnd",
-                  "refStartDate": refStartDate,
-                  "refStopDate": refStopDate
+                  "startDate": "$leaveStart",
+                  "stopDate": "$leaveStop",
+                  "halfDay": "$halfDay",
+                  "description": "$description"
+               }
+            },
+            {
+               $addFields: {
+                  startDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [{ $toString: { $dayOfMonth: "$startDate" } }, "-",
+                           { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
+                           { $toString: { $year: "$startDate" } }]
+                        }
+                     }
+                  },
+                  stopDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [{ $toString: { $dayOfMonth: "$stopDate" } }, "-",
+                           { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
+                           { $toString: { $year: "$stopDate" } }]
+                        }
+                     }
+                  }
                }
             }
          ]).toArray((err, locHolArr) => {
             if (err) {
-               reject("DB error in " + getLocHolDates.name + ": " + err);
+               reject("DB error in " + funcName + ": " + err);
             } else {
                resolve(locHolArr);
             }

@@ -93,8 +93,8 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
                "empEsaLink": "$empEsaLink",
                "ctsEmpId": "$ctsEmpId",
                "startDate": "$startDate",
-               "endDate": "$endDate",
-               "days": "$days",
+               "stopDate": "$stopDate",
+               "halfDay": "$halfDay",
                "reason": "$reason",
                "leaveStart": {
                   $dateFromParts: {
@@ -106,9 +106,9 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
                },
                "leaveEnd": {
                   $dateFromParts: {
-                     year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                     month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                     day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                     year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
+                     month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
+                     day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
                      hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                   }
                }
@@ -155,11 +155,10 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
             $project: {
                "_id": "$_id",
                "startDate": "$leaveStart",
-               "endDate": "$leaveEnd",
-               "days": { $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] },
-               "reason": "$reason",
-               "revenueStart": revenueStart,
-               "revenueStop": revenueStop
+               "stopDate": "$leaveEnd",
+               "days": { $divide: [{ $add: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] }, mSecInDay] },
+               "halfDay": "$halfDay",
+               "reason": "$reason"
             }
          },
          {
@@ -178,16 +177,16 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
                      }
                   }
                },
-               endDate: {
+               stopDate: {
                   $let: {
                      vars: {
                         monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                      },
                      in: {
                         $concat: [
-                           { $toString: { $dayOfMonth: "$endDate" } }, "-",
-                           { $arrayElemAt: ["$$monthsInString", { $month: "$endDate" }] }, "-",
-                           { $toString: { $year: "$endDate" } }
+                           { $toString: { $dayOfMonth: "$stopDate" } }, "-",
+                           { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
+                           { $toString: { $year: "$stopDate" } }
                         ]
                      }
                   }
@@ -231,11 +230,13 @@ function getSelfLeaveDates(empEsaLink, ctsEmpId, selfLeaveStart, selfLeaveStop, 
          dbObj.getDb().collection(empLeaveColl).aggregate([
             {
                $project: {
-                  "_id": 1,
-                  "empEsaLink": 3,
-                  "ctsEmpId": 4,
-                  "startDate": 5,
-                  "endDate": 6,
+                  "_id": "$_id",
+                  "empEsaLink": "$empEsaLink",
+                  "ctsEmpId": "$ctsEmpId",
+                  "startDate": "$startDate",
+                  "stopDate": "$stopDate",
+                  "halfDay": "$halfDay",
+                  "reason": "$reason",
                   "leaveStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$startDate", 4, -1] } },
@@ -246,9 +247,9 @@ function getSelfLeaveDates(empEsaLink, ctsEmpId, selfLeaveStart, selfLeaveStop, 
                   },
                   "leaveStop": {
                      $dateFromParts: {
-                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   }
@@ -294,18 +295,48 @@ function getSelfLeaveDates(empEsaLink, ctsEmpId, selfLeaveStart, selfLeaveStop, 
             {
                $project: {
                   "_id": "$_id",
-                  "funcName": getSelfLeaveDates.name,
-                  "callerName": callerName,
-                  "selfLeaveStart": "$leaveStart",
-                  "selfLeaveStop": "$leaveEnd",
-                  "days": { $divide: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] },
-                  "refStartDate": refStartDate,
-                  "refStopDate": refStopDate
+                  "startDate": "$leaveStart",
+                  "stopDate": "$leaveEnd",
+                  "days": { $divide: [{ $add: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] }, mSecInDay] },
+                  "halfDay": "$halfDay",
+                  "reason": "$reason"
+               }
+            },
+            {
+               $addFields: {
+                  startDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [
+                              { $toString: { $dayOfMonth: "$startDate" } }, "-",
+                              { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
+                              { $toString: { $year: "$startDate" } }
+                           ]
+                        }
+                     }
+                  },
+                  stopDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [
+                              { $toString: { $dayOfMonth: "$stopDate" } }, "-",
+                              { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
+                              { $toString: { $year: "$stopDate" } }
+                           ]
+                        }
+                     }
+                  }
                }
             }
          ]).toArray((err, selfLeaveArr) => {
             if (err) {
-               reject("DB error in " + getSelfLeaveDates.name + ": " + err);
+               reject("DB error in " + funcName + ": " + err);
             } else {
                resolve(selfLeaveArr);
             }
@@ -372,9 +403,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
                "_id": "$_id",
                "month": "$month",
                "days": { $toInt: "$days" },
-               "reason": "$reason",
-               "revenueStart": revenueStart,
-               "revenueStop": revenueStop
+               "reason": "$reason"
             }
          },
          {
@@ -413,6 +442,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
 
 /* get projection data for specific employee in selected project */
 function getEmployeeProjection(recordId, revenueYear) {
+   let funcName = getEmployeeProjection.name;
    return new Promise((resolve, reject) => {
       if (revenueYear === undefined || revenueYear === "") {
          reject(getEmployeeProjection.name + ": Revenue year is not provided");
@@ -420,7 +450,6 @@ function getEmployeeProjection(recordId, revenueYear) {
          reject(getEmployeeProjection.name + ": Record id is not provided");
       }
 
-      let funcName = getEmployeeProjection.name;
       let recordObjId = new ObjectId(recordId);
       let intRevenueYear = parseInt(revenueYear, 10);
       let revenueStart = new Date(intRevenueYear, 0, 2);
@@ -469,16 +498,14 @@ function getEmployeeProjection(recordId, revenueYear) {
                "lowesUid": "$lowesUid",
                "deptName": "$deptName",
                "sowStartDate": "$sowStartDate",
-               "sowEndDate": "$sowEndDate",
-               "foreseenEndDate": "$foreseenEndDate",
+               "sowStopDate": "$sowStopDate",
+               "foreseenStopDate": "$foreseenStopDate",
                "cityCode": "$empEsaLoc.cityCode",
                "cityName": "$empEsaLoc.cityName",
                "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
                "billRatePerHr": { $toInt: "$billRatePerHr" },
                "currency": "$empEsaProj.currency",
-               "empEsaLink": "$empEsaLink",
-               "revenueStart": revenueStart,
-               "revenueStop": revenueStop
+               "empEsaLink": "$empEsaLink"
             }
          },
          {
@@ -501,40 +528,40 @@ function getEmployeeProjection(recordId, revenueYear) {
                      }, else: "$sowStartDate"
                   }
                },
-               sowEndDate: {
+               sowStopDate: {
                   $cond: {
-                     if: { $ne: ["$sowEndDate", ""] }, then: {
+                     if: { $ne: ["$sowStopDate", ""] }, then: {
                         $let: {
                            vars: {
                               monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                            },
                            in: {
                               $concat: [
-                                 { $toString: { $toInt: { $substr: ["$sowEndDate", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowEndDate", 2, 2] } }] }, "-",
-                                 { $substr: ["$sowEndDate", 4, -1] }
+                                 { $toString: { $toInt: { $substr: ["$sowStopDate", 0, 2] } } }, "-",
+                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStopDate", 2, 2] } }] }, "-",
+                                 { $substr: ["$sowStopDate", 4, -1] }
                               ]
                            }
                         }
-                     }, else: "$sowEndDate"
+                     }, else: "$sowStopDate"
                   }
                },
-               foreseenEndDate: {
+               foreseenStopDate: {
                   $cond: {
-                     if: { $ne: ["$foreseenEndDate", ""] }, then: {
+                     if: { $ne: ["$foreseenStopDate", ""] }, then: {
                         $let: {
                            vars: {
                               monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                            },
                            in: {
                               $concat: [
-                                 { $toString: { $toInt: { $substr: ["$foreseenEndDate", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenEndDate", 2, 2] } }] }, "-",
-                                 { $substr: ["$foreseenEndDate", 4, -1] }
+                                 { $toString: { $toInt: { $substr: ["$foreseenStopDate", 0, 2] } } }, "-",
+                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenStopDate", 2, 2] } }] }, "-",
+                                 { $substr: ["$foreseenStopDate", 4, -1] }
                               ]
                            }
                         }
-                     }, else: "$foreseenEndDate"
+                     }, else: "$foreseenStopDate"
                   }
                }
             }
@@ -554,7 +581,7 @@ function getEmployeeProjection(recordId, revenueYear) {
                      empDtl.push({ "publicHolidays": locHolArr });
                      splWrkObj.getSplWrkDays(empEsaLink, strCtsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
                         empDtl.push({ "specialWorkDays": splWrkArr });
-                        revObj.calcEmpRevenue(empDtl, intRevenueYear).then((revenueArr) => {
+                        revObj.calcEmpRevenue(empDtl, intRevenueYear, funcName).then((revenueArr) => {
                            empDtl.push({ "revenue": revenueArr });
                            if (selfLeaveArr.length === 0) {
                               empDtl[1].leaves.push("No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy"));

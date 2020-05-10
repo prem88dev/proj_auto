@@ -3,6 +3,7 @@ const commObj = require("./utility");
 const empSplWrkObj = "emp_spl_wrk";
 const locSplWrkObj = "loc_spl_wrk";
 const leaveHour = 4;
+const mSecInDay = 86400000;
 
 
 function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName) {
@@ -28,7 +29,8 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
                   "empEsaLink": "$empEsaLink",
                   "ctsEmpId": "$ctsEmpId",
                   "startDate": "$startDate",
-                  "endDate": "$endDate",
+                  "stopDate": "$stopDate",
+                  "reason": "$reason",
                   "workStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$startDate", 4, -1] } },
@@ -39,9 +41,9 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
                   },
                   "workStop": {
                      $dateFromParts: {
-                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0
                      }
                   }
@@ -87,10 +89,10 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
             {
                $project: {
                   "_id": "$_id",
-                  "empEsaLink": "$empEsaLink",
-                  "ctsEmpId": "$ctsEmpId",
                   "startDate": "$workStart",
-                  "endDate": "$workStop"
+                  "stopDate": "$workStop",
+                  "days": { $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, mSecInDay] },
+                  "reason": "$reason"
                }
             },
             {
@@ -109,16 +111,16 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
                         }
                      }
                   },
-                  endDate: {
+                  stopDate: {
                      $let: {
                         vars: {
                            monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                         },
                         in: {
                            $concat: [
-                              { $toString: { $dayOfMonth: "$endDate" } }, "-",
-                              { $arrayElemAt: ["$$monthsInString", { $month: "$endDate" }] }, "-",
-                              { $toString: { $year: "$endDate" } }
+                              { $toString: { $dayOfMonth: "$stopDate" } }, "-",
+                              { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
+                              { $toString: { $year: "$stopDate" } }
                            ]
                         }
                      }
@@ -164,7 +166,8 @@ function getLocSplWrk(cityCode, splWrkStart, splWrkStop, callerName) {
                   "_id": "$_id",
                   "cityCode": "$cityCode",
                   "startDate": "$startDate",
-                  "endDate": "$endDate",
+                  "stopDate": "$stopDate",
+                  "reason": "$reason",
                   "workStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$startDate", 4, -1] } },
@@ -175,9 +178,9 @@ function getLocSplWrk(cityCode, splWrkStart, splWrkStop, callerName) {
                   },
                   "workStop": {
                      $dateFromParts: {
-                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0
                      }
                   }
@@ -222,9 +225,10 @@ function getLocSplWrk(cityCode, splWrkStart, splWrkStop, callerName) {
             {
                $project: {
                   "_id": "$_id",
-                  "cityCode": "$cityCode",
                   "startDate": "$workStart",
-                  "endDate": "$workStop"
+                  "stopDate": "$workStop",
+                  "days": { $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, mSecInDay] },
+                  "reason": "$reason"
                }
             },
             {
@@ -243,16 +247,16 @@ function getLocSplWrk(cityCode, splWrkStart, splWrkStop, callerName) {
                         }
                      }
                   },
-                  endDate: {
+                  stopDate: {
                      $let: {
                         vars: {
                            monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                         },
                         in: {
                            $concat: [
-                              { $toString: { $dayOfMonth: "$endDate" } }, "-",
-                              { $arrayElemAt: ["$$monthsInString", { $month: "$endDate" }] }, "-",
-                              { $toString: { $year: "$endDate" } }
+                              { $toString: { $dayOfMonth: "$stopDate" } }, "-",
+                              { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
+                              { $toString: { $year: "$stopDate" } }
                            ]
                         }
                      }
@@ -307,14 +311,14 @@ function getWeekEndHours(empSplWrkArr, locSplWrkArr, _callerName) {
                      while (fromDate.getTime() <= empSplStop.getTime()) {
                         if (fromDate.getDay() === 0 || fromDate.getDay() === 6) {
                            if (fromDate.getTime() >= locSplStart.getTime() && fromDate.getTime() <= locSplStop.getTime()) {
-                              if (empSplWrk.halfDayInd === 1 && locSplWrk.halfDayInd === 1) {
+                              if (empSplWrk.halfDay === "Y" && locSplWrk.halfDay === "Y") {
                                  weekendHrs += billHrPerDay;
-                              } else if (empSplWrk.halfDayInd === 1 || locSplWrk.halfDayInd === 1) {
+                              } else if (empSplWrk.halfDay === "Y" || locSplWrk.halfDay === "Y") {
                                  weekendHrs += billHrPerDay - leaveHour;
                               } else {
                                  weekendHrs += billHrPerDay;
                               }
-                           } else if (fromDate.halfDayInd === 1) {
+                           } else if (fromDate.halfDay === "Y") {
                               weekendHrs += (billHrPerDay - leaveHour);
                            } else {
                               weekendHrs += billHrPerDay;

@@ -9,7 +9,7 @@ function countWeekdays(leaveArr, callerName) {
    let weekdaysInLeave = 0;
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
-         getWeekDaysBetween(leave.startDate, leave.endDate, true, funcName).then((weekdays) => {
+         getDaysBetween(leave.startDate, leave.stopDate, true, funcName).then((weekdays) => {
             weekdaysInLeave += weekdays;
          });
       });
@@ -22,7 +22,7 @@ function countWeekends(leaveArr, callerName) {
    let weekendsInLeave = 0;
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
-         getWeekEndsBetween(leave.startDate, leave.endDate, true, funcName).then((weekends) => {
+         getWeekEndsBetween(leave.startDate, leave.stopDate, true, funcName).then((weekends) => {
             weekendsInLeave += weekends;
          });
       });
@@ -35,7 +35,7 @@ function countAllDays(leaveArr, callerName) {
    let leaveDays = 0;
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
-         getWeekDaysBetween(leave.startDate, leave.endDate, false, funcName).then((daysBetween) => {
+         getDaysBetween(leave.startDate, leave.stopDate, false, funcName).then((daysBetween) => {
             leaveDays += daysBetween;
          });
       });
@@ -78,8 +78,8 @@ function getWeekEndsBetween(startDate, stopDate, callerName) {
 };
 
 /* calculate number of days between */
-function getWeekDaysBetween(startDate, stopDate, getWeekDays, callerName) {
-   let funcName = getWeekDaysBetween.name;
+function getDaysBetween(startDate, stopDate, getWeekdaysOnly, callerName) {
+   let funcName = getDaysBetween.name;
    let daysBetween = 0;
    return new Promise((resolve, _reject) => {
       if (startDate === undefined || stopDate === undefined) {
@@ -94,7 +94,7 @@ function getWeekDaysBetween(startDate, stopDate, getWeekDays, callerName) {
 
          if (fromDate.getTime() === toDate.getTime()) {
             let dayOfWeek = fromDate.getDay();
-            if (getWeekDays === true) {
+            if (getWeekdaysOnly === true) {
                if (dayOfWeek > 0 && dayOfWeek < 6) {
                   daysBetween++;
                }
@@ -105,7 +105,7 @@ function getWeekDaysBetween(startDate, stopDate, getWeekDays, callerName) {
             while (fromDate <= toDate) {
                let dayOfWeek = fromDate.getDay();
                /* check if the date is neither a Sunday(0) nor a Saturday(6) */
-               if (getWeekDays === true) {
+               if (getWeekdaysOnly === true) {
                   if (dayOfWeek > 0 && dayOfWeek < 6) {
                      daysBetween++;
                   }
@@ -146,8 +146,8 @@ function calcLeaveHours(wrkHrPerDay, selfLeaveArr, locHolArr, leaveStart, leaveS
          calcStart.setUTCHours(0, 0, 0, 0);
          calcStop.setUTCHours(0, 0, 0, 0);
 
-         getWeekDaysBetween(calcStart, calcStop, true, funcName).then(async (workDaysBetween) => {
-            if (selfLeave.halfDayInd === 1) {
+         getDaysBetween(calcStart, calcStop, true, funcName).then(async (workDaysBetween) => {
+            if (selfLeave.halfDay === "Y") {
                totalWorkHours += (wrkHrPerDay - leaveHour) * workDaysBetween;
             }
             await locHolArr.forEach((locHol) => {
@@ -182,7 +182,7 @@ function calcLeaveHours(wrkHrPerDay, selfLeaveArr, locHolArr, leaveStart, leaveS
                effLeaveStart.setUTCHours(0, 0, 0, 0);
                effLeaveStop.setUTCHours(0, 0, 0, 0);
 
-               if (selfLeave.halfDayInd === 1 && locHol.halfDayInd === 1) {
+               if (selfLeave.halfDay === "Y" && locHol.halfDay === "Y") {
                   totalWorkHours += (wrkHrPerDay / 2);
                } else {
                   totalWorkHours += wrkHrPerDay;
@@ -248,7 +248,7 @@ function countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, selfLeaveSta
                   "empEsaLink": "$empEsaLink",
                   "ctsEmpId": "$ctsEmpId",
                   "startDate": "$startDate",
-                  "endDate": "$endDate",
+                  "stopDate": "$stopDate",
                   "leaveStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$startDate", 4, -1] } },
@@ -259,9 +259,9 @@ function countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, selfLeaveSta
                   },
                   "leaveStop": {
                      $dateFromParts: {
-                        year: { $toInt: { $substr: ["$endDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$endDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$endDate", 0, 2] } },
+                        year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0
                      }
                   },
@@ -322,7 +322,7 @@ function countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, selfLeaveSta
                   "empEsaLink": "$empEsaLink",
                   "ctsEmpId": "$ctsEmpId",
                   "startDate": "$startDate",
-                  "endDate": "$endDate",
+                  "stopDate": "$stopDate",
                   "leaveStart": "$leaveStart",
                   "leaveStop": "$leaveStop",
                   "inputStart": "$inputStart",
@@ -347,7 +347,7 @@ module.exports = {
    countAllDays,
    countWeekends,
    calcLeaveHours,
-   getWeekDaysBetween,
+   getDaysBetween,
    getWeekEndsBetween,
    /*calcSelfAndLocLeaveHours,*/
    countPersonalWeekdays_test

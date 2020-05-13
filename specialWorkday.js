@@ -30,6 +30,7 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
                   "ctsEmpId": "$ctsEmpId",
                   "startDate": "$startDate",
                   "stopDate": "$stopDate",
+                  "halfDay": "$halfDay",
                   "reason": "$reason",
                   "workStart": {
                      $dateFromParts: {
@@ -91,7 +92,15 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
                   "_id": "$_id",
                   "startDate": "$workStart",
                   "stopDate": "$workStop",
-                  "days": { $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, mSecInDay] },
+                  "days": {
+                     $cond: {
+                        if: { $eq: ["$halfDay", "Y"] }, then: {
+                           $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, (mSecInDay * 2)]
+                        },
+                        else: { $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, mSecInDay] }
+                     }
+                  },
+                  "halfDay": "$halfDay",
                   "reason": "$reason"
                }
             },
@@ -167,6 +176,7 @@ function getLocSplWrk(cityCode, splWrkStart, splWrkStop, callerName) {
                   "cityCode": "$cityCode",
                   "startDate": "$startDate",
                   "stopDate": "$stopDate",
+                  "halfDay": "$halfDay",
                   "reason": "$reason",
                   "workStart": {
                      $dateFromParts: {
@@ -227,7 +237,15 @@ function getLocSplWrk(cityCode, splWrkStart, splWrkStop, callerName) {
                   "_id": "$_id",
                   "startDate": "$workStart",
                   "stopDate": "$workStop",
-                  "days": { $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, mSecInDay] },
+                  "days": {
+                     $cond: {
+                        if: { $eq: ["$halfDay", "Y"] }, then: {
+                           $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, (mSecInDay * 2)]
+                        },
+                        else: { $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, mSecInDay] }
+                     }
+                  },
+                  "halfDay": "$halfDay",
                   "reason": "$reason"
                }
             },

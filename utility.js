@@ -10,7 +10,11 @@ function countWeekdays(leaveArr, callerName) {
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
          getDaysBetween(leave.startDate, leave.stopDate, true, funcName).then((weekdays) => {
-            weekdaysInLeave += weekdays;
+            if (leave.halfDay === "Y") {
+               weekdaysInLeave += (weekdays / 2);
+            } else {
+               weekdaysInLeave += weekdays;
+            }
          });
       });
       resolve(weekdaysInLeave);
@@ -23,7 +27,11 @@ function countWeekends(leaveArr, callerName) {
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
          getWeekEndsBetween(leave.startDate, leave.stopDate, true, funcName).then((weekends) => {
-            weekendsInLeave += weekends;
+            if (leave.halfDay === "Y") {
+               weekendsInLeave += (weekends / 2);
+            } else {
+               weekendsInLeave += weekends;
+            }
          });
       });
       resolve(weekendsInLeave);
@@ -36,7 +44,11 @@ function countAllDays(leaveArr, callerName) {
    return new Promise(async (resolve, _reject) => {
       await leaveArr.forEach((leave) => {
          getDaysBetween(leave.startDate, leave.stopDate, false, funcName).then((daysBetween) => {
-            leaveDays += daysBetween;
+            if (leave.halfDay === "Y") {
+               leaveDays += (daysBetween / 2);
+            } else {
+               leaveDays += daysBetween;
+            }
          });
       });
       resolve(leaveDays);

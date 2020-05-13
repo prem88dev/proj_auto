@@ -3,6 +3,9 @@ const splWrkObj = require("./specialWorkday");
 const dateTime = require("date-and-time");
 const dateFormat = require("dateformat");
 
+var fs = require('fs')
+var logger = fs.createWriteStream('log.txt');
+
 
 function calcMonthLeaves(leaveArrObj, monthIndex, startDate, stopDate) {
    return new Promise(async (resolve, reject) => {
@@ -46,10 +49,12 @@ function getBufferHours(empBufferArr, monthIndex, wrkHrPerDay, callerName) {
       } else if (wrkHrPerDay === undefined || wrkHrPerDay === "") {
          reject(getBufferHours.name + ": Billing hours per day is not provided");
       } else {
-         await empBufferArr.forEach((empBuffer) => {
-            let bufferMonth = new Date(dateTime.parse(empBuffer.month, "MMM-YYYY", true)).getMonth();
-            if (monthIndex === bufferMonth) {
-               bufferHours = parseInt(empBuffer.days, 10) * parseInt(wrkHrPerDay, 10);
+         await empBufferArr.forEach((empBuffer, idx) => {
+            if (idx < (empBufferArr.length - 1)) {
+               let bufferMonth = new Date(dateTime.parse(empBuffer.month, "MMM-YYYY", true)).getMonth();
+               if (monthIndex === bufferMonth) {
+                  bufferHours = parseInt(empBuffer.days, 10) * parseInt(wrkHrPerDay, 10);
+               }
             }
          });
          resolve(bufferHours);
@@ -120,13 +125,13 @@ const calcRevenueHour = (empJsonObj, startDate, stopDate, revenueHourArr, caller
          }
 
          let dayOfWeek = calcStartDate.getDay();
-         let intSelfLeaveHour = 0;
+         let intEmpLeaveHour = 0;
          let intLocLeaveHour = 0;
          let intEmpAddlWrkHour = 0;
          let intLocAddlWrkHour = 0
 
-         await computeLeaveHour(empJsonObj[1].leaves, calcStartDate, wrkHrPerDay, funcName).then((selfLeaveHour) => {
-            intSelfLeaveHour = parseInt(selfLeaveHour, 10);
+         await computeLeaveHour(empJsonObj[1].leaves, calcStartDate, wrkHrPerDay, funcName).then((empLeaveHour) => {
+            intEmpLeaveHour = parseInt(empLeaveHour, 10);
          });
 
          await computeLeaveHour(empJsonObj[3].publicHolidays, calcStartDate, wrkHrPerDay, funcName).then((locLeaveHour) => {
@@ -141,80 +146,58 @@ const calcRevenueHour = (empJsonObj, startDate, stopDate, revenueHourArr, caller
             intLocAddlWrkHour = parseInt(locAddlWrkHour, 10);
          });
 
-         if ((dayOfWeek > 0 && dayOfWeek < 6) ||
-            ((dayOfWeek === 0 || dayOfWeek === 6) && (intLocAddlWrkHour > 0 || intEmpAddlWrkHour > 0))) {
-            if (intSelfLeaveHour > 0 || intLocLeaveHour > 0) {
-               let effEmpLeaveHour = intSelfLeaveHour; /* intSelfLeaveHour - 4, intEmpAddlWrkHour - 5 */
-               if (intEmpAddlWrkHour <= intSelfLeaveHour) {
-                  effEmpLeaveHour = intSelfLeaveHour - intEmpAddlWrkHour;
+         if (dayOfWeek > 0 && dayOfWeek < 6) { /* week day */
+            let effLocWrkHr = (wrkHrPerDay - intLocLeaveHour) + intLocAddlWrkHour;
+            if (effLocWrkHr > wrkHrPerDay) {
+               effLocWrkHr = wrkHrPerDay;
+            }
+
+            let effEmpWrkHr = (wrkHrPerDay - intEmpLeaveHour) + intEmpAddlWrkHour;
+            if (effEmpWrkHr > wrkHrPerDay) {
+               effEmpWrkHr = wrkHrPerDay;
+            }
+
+            if (intLocLeaveHour > 0 && intEmpLeaveHour > 0) {
+               if ((effLocWrkHr + effEmpWrkHr) < wrkHrPerDay) {
+                  revenueHour += effLocWrkHr + effEmpWrkHr;
+                  cmiRevenueHour += effLocWrkHr + effEmpWrkHr;
                } else {
-                  effEmpLeaveHour = 0;
-               } /* effEmpLeaveHour - 0 */
-
-               let effLocLeaveHour = intLocLeaveHour; /* intLocLeaveHour - 4, intLocAddlWrkHour - 2 */
-               if (intLocAddlWrkHour <= intLocLeaveHour) {
-                  effLocLeaveHour = intLocLeaveHour - intLocAddlWrkHour;
-               } else {
-                  effLocLeaveHour = 0;
-               } /* effLocLeaveHour - 2 */
-
-               let effLeaveHour = wrkHrPerDay;
-               if ((effEmpLeaveHour + effLocLeaveHour) < effLeaveHour) {
-                  effLeaveHour -= effEmpLeaveHour + effLocLeaveHour;
-               } /* effLeaveHour - 2 */
-
-               if (intEmpAddlWrkHour > 0 && intLocAddlWrkHour > 0) {
-                  let effWorkHour = wrkHrPerDay;
-                  if ((intEmpAddlWrkHour + intLocAddlWrkHour) < wrkHrPerDay) {
-                     effWorkHour = intEmpAddlWrkHour + intLocAddlWrkHour;
-                  } /* effWorkHour - 7 */
-
-                  if (effLeaveHour < effWorkHour) {
-                     revenueHour += effWorkHour - effLeaveHour;
-                  }
-
-                  if (effLocLeaveHour < wrkHrPerDay) {
-                     cmiRevenueHour += wrkHrPerDay - effLocLeaveHour;
-                  }
-               } else if (intLocAddlWrkHour > 0) {
-                  if (intSelfLeaveHour < wrkHrPerDay) {
-                     revenueHour += wrkHrPerDay - intSelfLeaveHour;
-                  }
-
-                  if (effLocLeaveHour <= wrkHrPerDay) {
-                     cmiRevenueHour += wrkHrPerDay - effLocLeaveHour;
-                  }
-               } else if (intEmpAddlWrkHour > 0) {
-                  if (effEmpLeaveHour < wrkHrPerDay) {
-                     revenueHour += wrkHrPerDay - effEmpLeaveHour;
-                  }
-
-                  if (intLocLeaveHour <= wrkHrPerDay) {
-                     cmiRevenueHour += wrkHrPerDay - intLocLeaveHour;
-                  }
-               } else {
-                  if (intSelfLeaveHour <= wrkHrPerDay) {
-                     revenueHour += wrkHrPerDay - intSelfLeaveHour;
-                  }
-
-                  if (intLocLeaveHour <= wrkHrPerDay) {
-                     cmiRevenueHour += wrkHrPerDay - intLocLeaveHour;
-                  }
+                  revenueHour += wrkHrPerDay;
+                  cmiRevenueHour += wrkHrPerDay;
                }
-            } else if (dayOfWeek > 0 && dayOfWeek < 6) {
+            } else if (intLocLeaveHour > 0) {
+               revenueHour += effLocWrkHr;
+               cmiRevenueHour += effLocWrkHr;
+            } else if (intEmpLeaveHour > 0) {
+               revenueHour += effEmpWrkHr;
+               cmiRevenueHour += wrkHrPerDay;
+            } else {
                revenueHour += wrkHrPerDay;
                cmiRevenueHour += wrkHrPerDay;
-            } else if (dayOfWeek === 0 || dayOfWeek === 6) {
-               revenueHour += intEmpAddlWrkHour + intLocAddlWrkHour;
-               cmiRevenueHour += intEmpAddlWrkHour + intLocAddlWrkHour;
+            }
+         } else if (intLocAddlWrkHour > 0 || intEmpAddlWrkHour > 0) {
+            let effLocWrkHr = (wrkHrPerDay - intLocLeaveHour) + intLocAddlWrkHour;
+            if (effLocWrkHr > wrkHrPerDay) {
+               effLocWrkHr = wrkHrPerDay;
+            }
+
+            let effEmpWrkHr = (wrkHrPerDay - intEmpLeaveHour) + intEmpAddlWrkHour;
+            if (effEmpWrkHr > wrkHrPerDay) {
+               effEmpWrkHr = wrkHrPerDay;
+            }
+
+            if ((effLocWrkHr + effEmpWrkHr) >= wrkHrPerDay) {
+               revenueHour += wrkHrPerDay;
+               cmiRevenueHour += wrkHrPerDay;
             }
          }
 
+         logger.write(funcName + ": " + calcStartDate + " => intEmpLeaveHour: [" + intEmpLeaveHour + "]   intLocLeaveHour: [" + intLocLeaveHour + "]   intEmpAddlWrkHour: [" + intEmpAddlWrkHour + "]   intLocAddlWrkHour: [" + intLocAddlWrkHour + "]\n");
          calcStartDate.setDate(calcStartDate.getDate() + 1);
          tmpHourArr = { "revenueHour": revenueHour, "cmiRevenueHour": cmiRevenueHour, "nextStartDate": calcStartDate };
 
          if (calcStartDate.getTime() > calcStopDate.getTime()) {
-            return resolve(tmpHourArr)
+            return resolve(tmpHourArr);
          } else {
             return resolve(calcRevenueHour(empJsonObj, calcStartDate, stopDate, tmpHourArr, funcName));
          }
@@ -223,9 +206,9 @@ const calcRevenueHour = (empJsonObj, startDate, stopDate, revenueHourArr, caller
 }
 
 
-function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, callerName) {
+function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, wrkHrPerDay, billRatePerHr, callerName) {
    let funcName = getEmpMonthlyRevenue.name;
-   return new Promise((resolve, reject) => {
+   return new Promise(async (resolve, reject) => {
       if (empJsonObj === undefined || empJsonObj === "") {
          reject(calcMonthLeaves.name + ": Employee leave array is not provided");
       } else if (revenueYear === undefined || revenueYear === "") {
@@ -238,18 +221,18 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, callerName) {
          let monthLastDate = new Date(revenueYear, (monthIndex + 1), 0);
          monthLastDate.setHours(0, 0, 0, 0);
 
-         let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStartDate, "D-MMM-YYYY", true));
+         let sowStart = new Date(dateTime.parse(empJsonObj[0].sowStart, "D-MMM-YYYY", true));
          sowStart.setHours(0, 0, 0, 0);
-         let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowStopDate, "D-MMM-YYYY", true));
+         let sowEnd = new Date(dateTime.parse(empJsonObj[0].sowStop, "D-MMM-YYYY", true));
          sowEnd.setHours(0, 0, 0, 0);
 
          let effStopDate = sowEnd;
-         if (empJsonObj[0].foreseenStop !== undefined && empJsonObj[0].foreseenStop !== "") {
-            let foreseenStop = new Date(dateTime.parse(empJsonObj[0].foreseenStopDate, "D-MMM-YYYY", true));
-            foreseenStop.setHours(0, 0, 0, 0);
+         if (empJsonObj[0].foreseenSowStop !== undefined && empJsonObj[0].foreseenSowStop !== "") {
+            let foreseenSowStop = new Date(dateTime.parse(empJsonObj[0].foreseenSowStopDate, "D-MMM-YYYY", true));
+            foreseenSowStop.setHours(0, 0, 0, 0);
 
-            if ((foreseenStop.getFullYear() === sowEnd.getFullYear()) && (foreseenStop.getMonth() > sowEnd.getMonth())) {
-               effStopDate = foreseenStop;
+            if ((foreseenSowStop.getFullYear() === sowEnd.getFullYear()) && (foreseenSowStop.getMonth() > sowEnd.getMonth())) {
+               effStopDate = foreseenSowStop;
             }
          }
 
@@ -266,14 +249,22 @@ function getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, callerName) {
             calcStopDate = effStopDate;
          }
 
-         calcRevenueHour(empJsonObj, calcStartDate, calcStopDate, "", funcName).then((revenueHourArr) => {
+         let intBufferHour = 0;
+         await getBufferHours(empJsonObj[2].buffers, monthIndex, wrkHrPerDay, funcName).then((bufferHours) => {
+            intBufferHour = parseInt(bufferHours, 10);
+         })
+
+         await calcRevenueHour(empJsonObj, calcStartDate, calcStopDate, "", funcName).then((revenueHourArr) => {
             let revenueMonth = dateFormat(calcStartDate, "mmm-yyyy");
-            let intRevenueHour = parseInt(revenueHourArr.revenueHour, 10);
+            let intRevenueHour = parseInt(revenueHourArr.revenueHour, 10) - intBufferHour;
             let intCmiRevenueHour = parseInt(revenueHourArr.cmiRevenueHour, 10);
+            let intBillRatePerHr = parseInt(billRatePerHr, 10);
+            let revenueAmount = intRevenueHour * intBillRatePerHr;
+            let cmiRevenueAmount = intCmiRevenueHour * intBillRatePerHr;
             if (calcStartDate.getTime() >= sowStart.getTime() && calcStopDate.getTime() <= sowEnd.getTime()) {
-               resolve({ "revenueMonth": revenueMonth, "revenueHour": intRevenueHour, "cmiRevenueHour": intCmiRevenueHour });
+               resolve({ "revenueMonth": revenueMonth, "revenueHour": intRevenueHour, "revenueAmount": revenueAmount, "cmiRevenueHour": intCmiRevenueHour, "cmiRevenueAmount": cmiRevenueAmount });
             } else { /* we aren't within SOW timeline */
-               resolve({ "revenueMonth": revenueMonth, "revenueHour": 0, "cmiRevenueHour": intCmiRevenueHour });
+               resolve({ "revenueMonth": revenueMonth, "revenueHour": 0, "revenueAmount": 0, "cmiRevenueHour": intCmiRevenueHour, "cmiRevenueAmount": cmiRevenueAmount });
             }
          });
 
@@ -314,20 +305,23 @@ function calcEmpRevenue(empJsonObj, revenueYear, callerName) {
          reject(funcName + ": Employee object is not provided");
       } else if (revenueYear === undefined) {
          reject(funcName + ": Revenue year is not provided");
-      } else if (empJsonObj[0].sowStartDate === undefined || empJsonObj[0].sowStartDate == "") {
+      } else if (empJsonObj[0].sowStart === undefined || empJsonObj[0].sowStart == "") {
          reject(funcName + ": SOW start date is not defined for selected employee");
-      } else if (empJsonObj[0].sowStopDate === undefined || empJsonObj[0].sowStopDate == "") {
+      } else if (empJsonObj[0].sowStop === undefined || empJsonObj[0].sowStop == "") {
          reject(funcName + ": SOW end date is not defined for selected employee");
       } else if (empJsonObj[0].billRatePerHr === undefined || empJsonObj[0].billRatePerHr == "") {
          reject(funcName + ": Billing hour per day is not defined for selected employee");
       } else if (empJsonObj[0].wrkHrPerDay === undefined || empJsonObj[0].wrkHrPerDay == "") {
          reject(funcName + ": Billing rate is not defined for selected employee");
       } else {
+         let wrkHrPerDay = parseInt(empJsonObj[0].wrkHrPerDay, 10);
+         let billRatePerHr = parseInt(empJsonObj[0].billRatePerHr, 10);
          for (let monthIndex = 0; monthIndex <= 11; monthIndex++) {
-            monthRevArr.push(getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, funcName));
+            monthRevArr.push(getEmpMonthlyRevenue(empJsonObj, revenueYear, monthIndex, wrkHrPerDay, billRatePerHr, funcName));
          }
       }
       Promise.all(monthRevArr).then((monthRevenue) => {
+         logger.end();
          resolve(monthRevenue);
       });
    });

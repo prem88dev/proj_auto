@@ -46,23 +46,31 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
                   $or: [
                      {
                         $and: [
-                           { "leaveStart": { "$lte": revenueStart } },
-                           { "leaveStop": { "$gte": revenueStop } }
+                           { "leaveStart": { $lte: revenueStart } },
+                           { "leaveStop": { $gte: revenueStop } }
                         ]
                      },
                      {
                         $and: [
-                           { "leaveStart": { "$lte": revenueStart } },
-                           { "leaveStop": { "$gte": revenueStart } },
-                           { "leaveStop": { "$lte": revenueStop } }
+                           { "leaveStart": { $lte: revenueStart } },
+                           { "leaveStop": { $gte: revenueStart } },
+                           { "leaveStop": { $lte: revenueStop } }
                         ]
                      },
                      {
                         $and: [
-                           { "leaveStart": { "$gte": revenueStart } },
-                           { "leaveStart": { "$lte": revenueStop } },
-                           { "leaveStop": { "$gte": revenueStart } },
-                           { "leaveStop": { "$lte": revenueStop } }
+                           { "leaveStart": { $gte: revenueStart } },
+                           { "leaveStart": { $lte: revenueStop } },
+                           { "leaveStop": { $gte: revenueStart } },
+                           { "leaveStop": { $lte: revenueStop } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { $gte: revenueStart } },
+                           { "leaveStart": { $lte: revenueStop } },
+                           { "leaveStop": { $gte: revenueStart } },
+                           { "leaveStop": { $lte: revenueStop } }
                         ]
                      }
                   ]
@@ -73,7 +81,14 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
                   "_id": "$_id",
                   "startDate": "$leaveStart",
                   "stopDate": "$leaveStop",
-                  "days": { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] },
+                  "days": {
+                     $cond: {
+                        if: { $eq: ["$halfDay", "Y"] }, then: {
+                           $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
+                        },
+                        else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
+                     }
+                  },
                   "halfDay": "$halfDay",
                   "description": "$description"
                }
@@ -207,6 +222,14 @@ function getLocHolDates(cityCode, locHolStart, locHolStop, callerName) {
                   "_id": "$_id",
                   "startDate": "$leaveStart",
                   "stopDate": "$leaveStop",
+                  "days": {
+                     $cond: {
+                        if: { $eq: ["$halfDay", "Y"] }, then: {
+                           $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
+                        },
+                        else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
+                     }
+                  },
                   "halfDay": "$halfDay",
                   "description": "$description"
                }

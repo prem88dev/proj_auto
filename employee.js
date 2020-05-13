@@ -104,7 +104,7 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
                      hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                   }
                },
-               "leaveEnd": {
+               "leaveStop": {
                   $dateFromParts: {
                      year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
                      month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
@@ -122,30 +122,30 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
                   {
                      $and: [
                         { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStop } }
+                        { "leaveStop": { "$gte": revenueStop } }
                      ]
                   },
                   {
                      $and: [
                         { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueStop } }
+                        { "leaveStop": { "$gte": revenueStart } },
+                        { "leaveStop": { "$lte": revenueStop } }
                      ]
                   },
                   {
                      $and: [
                         { "leaveStart": { "$gte": revenueStart } },
                         { "leaveStart": { "$lte": revenueStop } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$lte": revenueStop } }
+                        { "leaveStop": { "$gte": revenueStart } },
+                        { "leaveStop": { "$lte": revenueStop } }
                      ]
                   },
                   {
                      $and: [
                         { "leaveStart": { "$gte": revenueStart } },
                         { "leaveStart": { "$lte": revenueStop } },
-                        { "leaveEnd": { "$gte": revenueStart } },
-                        { "leaveEnd": { "$gte": revenueStop } }
+                        { "leaveStop": { "$gte": revenueStart } },
+                        { "leaveStop": { "$gte": revenueStop } }
                      ]
                   }
                ]
@@ -155,8 +155,15 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
             $project: {
                "_id": "$_id",
                "startDate": "$leaveStart",
-               "stopDate": "$leaveEnd",
-               "days": { $divide: [{ $add: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] }, mSecInDay] },
+               "stopDate": "$leaveStop",
+               "days": {
+                  $cond: {
+                     if: { $eq: ["$halfDay", "Y"] }, then: {
+                        $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
+                     },
+                     else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
+                  }
+               },
                "halfDay": "$halfDay",
                "reason": "$reason"
             }
@@ -296,8 +303,15 @@ function getSelfLeaveDates(empEsaLink, ctsEmpId, selfLeaveStart, selfLeaveStop, 
                $project: {
                   "_id": "$_id",
                   "startDate": "$leaveStart",
-                  "stopDate": "$leaveEnd",
-                  "days": { $divide: [{ $add: [{ $subtract: ["$leaveEnd", "$leaveStart"] }, mSecInDay] }, mSecInDay] },
+                  "stopDate": "$leaveStop",
+                  "days": {
+                     $cond: {
+                        if: { $eq: ["$halfDay", "Y"] }, then: {
+                           $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
+                        },
+                        else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
+                     }
+                  },
                   "halfDay": "$halfDay",
                   "reason": "$reason"
                }
@@ -497,9 +511,9 @@ function getEmployeeProjection(recordId, revenueYear) {
                "empLname": "$empLname",
                "lowesUid": "$lowesUid",
                "deptName": "$deptName",
-               "sowStartDate": "$sowStartDate",
-               "sowStopDate": "$sowStopDate",
-               "foreseenStopDate": "$foreseenStopDate",
+               "sowStart": "$sowStart",
+               "sowStop": "$sowStop",
+               "foreseenSowStop": "$foreseenSowStop",
                "cityCode": "$empEsaLoc.cityCode",
                "cityName": "$empEsaLoc.cityName",
                "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
@@ -510,58 +524,58 @@ function getEmployeeProjection(recordId, revenueYear) {
          },
          {
             $addFields: {
-               sowStartDate: {
+               sowStart: {
                   $cond: {
-                     if: { $ne: ["$sowStartDate", ""] }, then: {
+                     if: { $ne: ["$sowStart", ""] }, then: {
                         $let: {
                            vars: {
                               monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                            },
                            in: {
                               $concat: [
-                                 { $toString: { $toInt: { $substr: ["$sowStartDate", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStartDate", 2, 2] } }] }, "-",
-                                 { $substr: ["$sowStartDate", 4, -1] }
+                                 { $toString: { $toInt: { $substr: ["$sowStart", 0, 2] } } }, "-",
+                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStart", 2, 2] } }] }, "-",
+                                 { $substr: ["$sowStart", 4, -1] }
                               ]
                            }
                         }
-                     }, else: "$sowStartDate"
+                     }, else: "$sowStart"
                   }
                },
-               sowStopDate: {
+               sowStop: {
                   $cond: {
-                     if: { $ne: ["$sowStopDate", ""] }, then: {
+                     if: { $ne: ["$sowStop", ""] }, then: {
                         $let: {
                            vars: {
                               monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                            },
                            in: {
                               $concat: [
-                                 { $toString: { $toInt: { $substr: ["$sowStopDate", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStopDate", 2, 2] } }] }, "-",
-                                 { $substr: ["$sowStopDate", 4, -1] }
+                                 { $toString: { $toInt: { $substr: ["$sowStop", 0, 2] } } }, "-",
+                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStop", 2, 2] } }] }, "-",
+                                 { $substr: ["$sowStop", 4, -1] }
                               ]
                            }
                         }
-                     }, else: "$sowStopDate"
+                     }, else: "$sowStop"
                   }
                },
-               foreseenStopDate: {
+               foreseenSowStop: {
                   $cond: {
-                     if: { $ne: ["$foreseenStopDate", ""] }, then: {
+                     if: { $ne: ["$foreseenSowStop", ""] }, then: {
                         $let: {
                            vars: {
                               monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                            },
                            in: {
                               $concat: [
-                                 { $toString: { $toInt: { $substr: ["$foreseenStopDate", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenStopDate", 2, 2] } }] }, "-",
-                                 { $substr: ["$foreseenStopDate", 4, -1] }
+                                 { $toString: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } } }, "-",
+                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } }] }, "-",
+                                 { $substr: ["$foreseenSowStop", 4, -1] }
                               ]
                            }
                         }
-                     }, else: "$foreseenStopDate"
+                     }, else: "$foreseenSowStop"
                   }
                }
             }

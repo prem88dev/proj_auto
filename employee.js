@@ -23,7 +23,7 @@ function computeBufferDays(bufferArr) {
 
 
 /*
-   listEmployeeInProj:
+   listAssociates:
       to get list of employees in a project
 
    params:
@@ -31,7 +31,7 @@ function computeBufferDays(bufferArr) {
    
    returns array of employee with their first, middle and last names
 */
-function listEmployeeInProj(esaId) {
+function listAssociates(esaId) {
    return new Promise((resolve, reject) => {
       db = dbObj.getDb();
       db.collection(empProjColl).aggregate([
@@ -370,14 +370,15 @@ function getSelfLeaveDates(empEsaLink, ctsEmpId, selfLeaveStart, selfLeaveStop, 
          ctsEmpId - employee id
          revenueYear - year for which leaves are required
 */
-function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
+function getBuffer(empEsaLink, ctsEmpId, revenueYear, callerName) {
+   let funcName = getBuffer.name;
    return new Promise((resolve, reject) => {
       if (empEsaLink === undefined || empEsaLink === "") {
-         reject(getBuffer.name + ": Linker ID is not provided");
+         reject(funcName + ": Linker ID is not provided");
       } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(getBuffer.name + ": Employee ID is not provided");
+         reject(funcName + ": Employee ID is not provided");
       } else if (revenueYear === undefined || revenueYear === "") {
-         reject(getBuffer.name + ": Revenue year is not provided");
+         reject(funcName + ": Revenue year is not provided");
       }
       let calcYear = parseInt(revenueYear, 10);
       let revenueStart = new Date(calcYear, 0, 2);
@@ -439,7 +440,7 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
          }
       ]).toArray((err, bufferArr) => {
          if (err) {
-            reject("DB error in " + getBuffer.name + "function: " + err);
+            reject("DB error in " + funcName + "function: " + err);
          } else if (bufferArr.length >= 1) {
             computeBufferDays(bufferArr).then((bufferDays) => {
                bufferArr.push({ "totalDays": bufferDays });
@@ -455,13 +456,13 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear) {
 
 
 /* get projection data for specific employee in selected project */
-function getEmployeeProjection(recordId, revenueYear) {
-   let funcName = getEmployeeProjection.name;
+function getProjection(recordId, revenueYear) {
+   let funcName = getProjection.name;
    return new Promise((resolve, reject) => {
       if (revenueYear === undefined || revenueYear === "") {
-         reject(getEmployeeProjection.name + ": Revenue year is not provided");
+         reject(funcName + ": Revenue year is not provided");
       } else if (recordId === undefined || recordId === "") {
-         reject(getEmployeeProjection.name + ": Record id is not provided");
+         reject(funcName + ": Record id is not provided");
       }
 
       let recordObjId = new ObjectId(recordId);
@@ -580,41 +581,53 @@ function getEmployeeProjection(recordId, revenueYear) {
                }
             }
          }
-      ]).toArray((err, empDtl) => {
+      ]).toArray(async (err, empProjection) => {
          if (err) {
             reject("DB error in " + funcName + " function: " + err);
-         } else if (empDtl.length === 1) {
-            let empEsaLink = empDtl[0].empEsaLink;
-            let strCtsEmpId = `${empDtl[0].ctsEmpId}`;
-            let cityCode = empDtl[0].cityCode;
-            getYearlySelfLeaves(empEsaLink, strCtsEmpId, intRevenueYear, funcName).then((selfLeaveArr) => {
-               empDtl.push({ "leaves": selfLeaveArr });
-               getBuffer(empEsaLink, strCtsEmpId, intRevenueYear, funcName).then((bufferArr) => {
-                  empDtl.push({ "buffers": bufferArr });
-                  locObj.getYearlyLocationLeaves(cityCode, intRevenueYear, funcName).then((locHolArr) => {
-                     empDtl.push({ "publicHolidays": locHolArr });
-                     splWrkObj.getSplWrkDays(empEsaLink, strCtsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
-                        empDtl.push({ "specialWorkDays": splWrkArr });
-                        revObj.calcEmpRevenue(empDtl, intRevenueYear, funcName).then((revenueArr) => {
-                           empDtl.push({ "revenue": revenueArr });
-                           if (selfLeaveArr.length === 0) {
-                              empDtl[1].leaves.push("No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy"));
-                           }
-                           if (bufferArr.length === 0) {
-                              empDtl[2].buffers.push("No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy"));
-                           }
-                           if (locHolArr.length === 0) {
-                              empDtl[3].publicHolidays.push("No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy"));
-                           }
-                           resolve(empDtl);
-                        }).catch((calcEmpRevenueErr) => { reject(calcEmpRevenueErr); });
-                     }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
-                  }).catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
-               }).catch((getBufferErr) => { reject(getBufferErr); });
+         } else if (empProjection.length === 1) {
+            let empEsaLink = empProjection[0].empEsaLink;
+            let strCtsEmpId = `${empProjection[0].ctsEmpId}`;
+            let cityCode = empProjection[0].cityCode;
+
+            await getYearlySelfLeaves(empEsaLink, strCtsEmpId, revenueYear, funcName).then((selfLeaveArr) => {
+               if (selfLeaveArr.length === 0) {
+                  empProjection.push({ "leaves": ["No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+               } else {
+                  empProjection.push({ "leaves": selfLeaveArr });
+               }
             }).catch((getYearlySelfLeavesErr) => { reject(getYearlySelfLeavesErr); });
-         } else if (empDtl.length === 0) {
+
+            await locObj.getYearlyLocationLeaves(cityCode, revenueYear, funcName).then((locHolArr) => {
+               if (locHolArr.length === 0) {
+                  empProjection.push({ "publicHolidays": ["No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+               } else {
+                  empProjection.push({ "publicHolidays": locHolArr });
+               }
+            }).catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
+
+            await splWrkObj.getSplWrkDays(empEsaLink, strCtsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
+               if (splWrkArr.length === 0) {
+                  empProjection.push({ "specialWorkDays": ["No additional workdays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+               } else {
+                  empProjection.push({ "specialWorkDays": splWrkArr });
+               }
+            }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
+
+            await getBuffer(empEsaLink, strCtsEmpId, revenueYear, funcName).then((bufferArr) => {
+               if (bufferArr.length === 0) {
+                  empProjection.push({ "buffers": ["No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+               } else {
+                  empProjection.push({ "buffers": bufferArr });
+               }
+            }).catch((getBufferErr) => { reject(getBufferErr); });
+
+            revObj.computeRevenue(empProjection, revenueYear, funcName).then((revenueArr) => {
+               empProjection.push({ "revenue": revenueArr });
+               resolve(empProjection);
+            }).catch((computeRevenueErr) => { reject(computeRevenueErr); });
+         } else if (empProjection.length === 0) {
             reject(funcName + ": No records found")
-         } else if (empDtl.length > 1) {
+         } else if (empProjection.length > 1) {
             reject(funcName + ": More than one record found");
          }
       });
@@ -625,9 +638,9 @@ function getEmployeeProjection(recordId, revenueYear) {
 
 
 module.exports = {
-   listEmployeeInProj,
+   listAssociates,
    getYearlySelfLeaves,
    getSelfLeaveDates,
    getBuffer,
-   getEmployeeProjection
+   getProjection
 }

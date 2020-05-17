@@ -100,7 +100,7 @@ libApp.get("/listEmpInProj", (req, res) => {
 libApp.get("/getEmpDtl", (req, res) => {
     let recordId = req.body.recordId;
     let revenueYear = req.body.revenueYear;
-    empObj.getEmployeeProjection(recordId, revenueYear).then((empDtl) => {
+    empObj.getProjection(recordId, revenueYear).then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

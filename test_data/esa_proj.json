@@ -1,0 +1,123 @@
+[
+	{
+		"esaId": "1000043321",
+		"esaDesc": "Lowe's Projects",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000043321_1",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000101627",
+		"esaDesc": "Lowe's APM Genesis",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000101627_1",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000156100",
+		"esaDesc": "Lowes_Resourcing Project",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000156100_1",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000165319",
+		"esaDesc": "Lowe's DFC",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000165319_1",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000251958",
+		"esaDesc": "Lowe's Digital POD(SITESPEED)",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000251958_1",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000251958",
+		"esaDesc": "Lowe's Digital POD(RECOMMENDATION)",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000251958_2",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000251958",
+		"esaDesc": "Lowe's Digital POD(CATALOG)",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000251958_3",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000251958",
+		"esaDesc": "Lowe's Digital POD(POST TRANSACTION)",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000251958_4",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000251958",
+		"esaDesc": "Lowe's Digital PODs",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000251958_5",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000251958",
+		"esaDesc": "Lowe's Digital PODs(SDET)",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000251958_6",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"esaId": "1000278366",
+		"esaDesc": "Lowe's-IBM PA-JAN 2020",
+		"currency": "USD",
+		"billingMode": "overlap",
+		"empEsaLink": "1000278366_1",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	}
+]

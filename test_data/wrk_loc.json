@@ -1,0 +1,74 @@
+[
+	{
+		"cityCode": "MRVL",
+		"cityName": "Mooresville",
+		"siteInd": "ON",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"cityCode": "BLR",
+		"cityName": "Bangalore",
+		"siteInd": "OFF",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"cityCode": "CBE",
+		"cityName": "Coimbatore",
+		"siteInd": "OFF",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"cityCode": "CHN",
+		"cityName": "Chennai",
+		"siteInd": "OFF",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"cityCode": "HYD",
+		"cityName": "Hyderabad",
+		"siteInd": "OFF",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"cityCode": "KLK",
+		"cityName": "Calcutta",
+		"siteInd": "OFF",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"cityCode": "KOC",
+		"cityName": "Cochin",
+		"siteInd": "OFF",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	},
+	{
+		"cityCode": "CSCB",
+		"cityName": "Client location - Bangalore",
+		"siteInd": "OFF",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+	}
+]

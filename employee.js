@@ -79,142 +79,143 @@ function getYearlySelfLeaves(empEsaLink, ctsEmpId, revenueYear) {
          reject(funcName + ": Employee ID is not provided");
       } else if (revenueYear === undefined || revenueYear === "") {
          reject(funcName + ": Revenue year is not provided");
-      }
-      let calcYear = parseInt(revenueYear, 10);
-      let revenueStart = new Date(calcYear, 0, 2);
-      revenueStart.setUTCHours(0, 0, 0, 0);
-      let revenueStop = new Date(calcYear, 12, 1);
-      revenueStop.setUTCHours(0, 0, 0, 0);
-      dbObj.getDb().collection(empLeaveColl).aggregate([
-         {
-            $project: {
-               "_id": "$_id",
-               "esaId": "$esaId",
-               "empEsaLink": "$empEsaLink",
-               "ctsEmpId": "$ctsEmpId",
-               "startDate": "$startDate",
-               "stopDate": "$stopDate",
-               "halfDay": "$halfDay",
-               "reason": "$reason",
-               "leaveStart": {
-                  $dateFromParts: {
-                     year: { $toInt: { $substr: ["$startDate", 4, -1] } },
-                     month: { $toInt: { $substr: ["$startDate", 2, 2] } },
-                     day: { $toInt: { $substr: ["$startDate", 0, 2] } },
-                     hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
-                  }
-               },
-               "leaveStop": {
-                  $dateFromParts: {
-                     year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
-                     month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
-                     day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
-                     hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
-                  }
-               }
-            }
-         },
-         {
-            $match: {
-               "empEsaLink": empEsaLink,
-               "ctsEmpId": ctsEmpId,
-               $or: [
-                  {
-                     $and: [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveStop": { "$gte": revenueStop } }
-                     ]
-                  },
-                  {
-                     $and: [
-                        { "leaveStart": { "$lte": revenueStart } },
-                        { "leaveStop": { "$gte": revenueStart } },
-                        { "leaveStop": { "$lte": revenueStop } }
-                     ]
-                  },
-                  {
-                     $and: [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueStop } },
-                        { "leaveStop": { "$gte": revenueStart } },
-                        { "leaveStop": { "$lte": revenueStop } }
-                     ]
-                  },
-                  {
-                     $and: [
-                        { "leaveStart": { "$gte": revenueStart } },
-                        { "leaveStart": { "$lte": revenueStop } },
-                        { "leaveStop": { "$gte": revenueStart } },
-                        { "leaveStop": { "$gte": revenueStop } }
-                     ]
-                  }
-               ]
-            }
-         },
-         {
-            $project: {
-               "_id": "$_id",
-               "startDate": "$leaveStart",
-               "stopDate": "$leaveStop",
-               "days": {
-                  $cond: {
-                     if: { $eq: ["$halfDay", "Y"] }, then: {
-                        $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
-                     },
-                     else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
-                  }
-               },
-               "halfDay": "$halfDay",
-               "reason": "$reason"
-            }
-         },
-         {
-            $addFields: {
-               startDate: {
-                  $let: {
-                     vars: {
-                        monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                     },
-                     in: {
-                        $concat: [
-                           { $toString: { $dayOfMonth: "$startDate" } }, "-",
-                           { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
-                           { $toString: { $year: "$startDate" } }
-                        ]
+      } else {
+         let calcYear = parseInt(revenueYear, 10);
+         let revenueStart = new Date(calcYear, 0, 2);
+         revenueStart.setUTCHours(0, 0, 0, 0);
+         let revenueStop = new Date(calcYear, 12, 1);
+         revenueStop.setUTCHours(0, 0, 0, 0);
+         dbObj.getDb().collection(empLeaveColl).aggregate([
+            {
+               $project: {
+                  "_id": "$_id",
+                  "esaId": "$esaId",
+                  "empEsaLink": "$empEsaLink",
+                  "ctsEmpId": "$ctsEmpId",
+                  "startDate": "$startDate",
+                  "stopDate": "$stopDate",
+                  "halfDay": "$halfDay",
+                  "reason": "$reason",
+                  "leaveStart": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$startDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$startDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$startDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
-                  }
-               },
-               stopDate: {
-                  $let: {
-                     vars: {
-                        monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                     },
-                     in: {
-                        $concat: [
-                           { $toString: { $dayOfMonth: "$stopDate" } }, "-",
-                           { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
-                           { $toString: { $year: "$stopDate" } }
-                        ]
+                  },
+                  "leaveStop": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
+                        month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
+                        day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   }
                }
+            },
+            {
+               $match: {
+                  "empEsaLink": empEsaLink,
+                  "ctsEmpId": ctsEmpId,
+                  $or: [
+                     {
+                        $and: [
+                           { "leaveStart": { "$lte": revenueStart } },
+                           { "leaveStop": { "$gte": revenueStop } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { "$lte": revenueStart } },
+                           { "leaveStop": { "$gte": revenueStart } },
+                           { "leaveStop": { "$lte": revenueStop } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { "$gte": revenueStart } },
+                           { "leaveStart": { "$lte": revenueStop } },
+                           { "leaveStop": { "$gte": revenueStart } },
+                           { "leaveStop": { "$lte": revenueStop } }
+                        ]
+                     },
+                     {
+                        $and: [
+                           { "leaveStart": { "$gte": revenueStart } },
+                           { "leaveStart": { "$lte": revenueStop } },
+                           { "leaveStop": { "$gte": revenueStart } },
+                           { "leaveStop": { "$gte": revenueStop } }
+                        ]
+                     }
+                  ]
+               }
+            },
+            {
+               $project: {
+                  "_id": "$_id",
+                  "startDate": "$leaveStart",
+                  "stopDate": "$leaveStop",
+                  "days": {
+                     $cond: {
+                        if: { $eq: ["$halfDay", "Y"] }, then: {
+                           $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
+                        },
+                        else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
+                     }
+                  },
+                  "halfDay": "$halfDay",
+                  "reason": "$reason"
+               }
+            },
+            {
+               $addFields: {
+                  startDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [
+                              { $toString: { $dayOfMonth: "$startDate" } }, "-",
+                              { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
+                              { $toString: { $year: "$startDate" } }
+                           ]
+                        }
+                     }
+                  },
+                  stopDate: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [
+                              { $toString: { $dayOfMonth: "$stopDate" } }, "-",
+                              { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
+                              { $toString: { $year: "$stopDate" } }
+                           ]
+                        }
+                     }
+                  }
+               }
             }
-         }
-      ]).toArray((err, leaveArr) => {
-         if (err) {
-            reject("DB error in " + funcName + ": " + err);
-         } else if (leaveArr.length >= 1) {
-            commObj.countAllDays(leaveArr, funcName).then((allDaysInLeave) => {
-               commObj.countWeekdays(leaveArr, funcName).then((workDaysInLeave) => {
-                  leaveArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
-                  resolve(leaveArr);
+         ]).toArray((err, leaveArr) => {
+            if (err) {
+               reject("DB error in " + funcName + ": " + err);
+            } else if (leaveArr.length >= 1) {
+               commObj.countAllDays(leaveArr, funcName).then((allDaysInLeave) => {
+                  commObj.countWeekdays(leaveArr, funcName).then((workDaysInLeave) => {
+                     leaveArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
+                     resolve(leaveArr);
+                  });
                });
-            });
-         }
-         else {
-            resolve(leaveArr);
-         }
-      });
+            }
+            else {
+               resolve(leaveArr);
+            }
+         });
+      }
    });
 }
 
@@ -379,78 +380,79 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear, callerName) {
          reject(funcName + ": Employee ID is not provided");
       } else if (revenueYear === undefined || revenueYear === "") {
          reject(funcName + ": Revenue year is not provided");
-      }
-      let calcYear = parseInt(revenueYear, 10);
-      let revenueStart = new Date(calcYear, 0, 2);
-      revenueStart.setUTCHours(0, 0, 0, 0);
-      let revenueStop = new Date(calcYear, 12, 1);
-      revenueStop.setUTCHours(0, 0, 0, 0);
-      dbObj.getDb().collection(empBuffer).aggregate([
-         {
-            $project: {
-               "_id": "$_id",
-               "empEsaLink": "$empEsaLink",
-               "ctsEmpId": "$ctsEmpId",
-               "month": "$month",
-               "days": "$days",
-               "reason": "$reason",
-               "bufferDate": {
-                  $dateFromParts: {
-                     year: { $toInt: { $substr: ["$month", 2, -1] } },
-                     month: { $toInt: { $substr: ["$month", 0, 2] } },
-                     day: 1, hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+      } else {
+         let calcYear = parseInt(revenueYear, 10);
+         let revenueStart = new Date(calcYear, 0, 2);
+         revenueStart.setUTCHours(0, 0, 0, 0);
+         let revenueStop = new Date(calcYear, 12, 1);
+         revenueStop.setUTCHours(0, 0, 0, 0);
+         dbObj.getDb().collection(empBuffer).aggregate([
+            {
+               $project: {
+                  "_id": "$_id",
+                  "empEsaLink": "$empEsaLink",
+                  "ctsEmpId": "$ctsEmpId",
+                  "month": "$month",
+                  "days": "$days",
+                  "reason": "$reason",
+                  "bufferDate": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$month", 2, -1] } },
+                        month: { $toInt: { $substr: ["$month", 0, 2] } },
+                        day: 1, hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                     }
                   }
                }
-            }
-         },
-         {
-            $match: {
-               $and: [
-                  { "empEsaLink": { "$eq": empEsaLink } },
-                  { "ctsEmpId": { "$eq": ctsEmpId } },
-                  { "bufferDate": { "$gte": revenueStart } },
-                  { "bufferDate": { "$lte": revenueStop } }
-               ]
-            }
-         },
-         {
-            $project: {
-               "_id": "$_id",
-               "month": "$month",
-               "days": { $toInt: "$days" },
-               "reason": "$reason"
-            }
-         },
-         {
-            $addFields: {
-               month: {
-                  $let: {
-                     vars: {
-                        monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                     },
-                     in: {
-                        $concat: [
-                           { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$month", 0, 2] } }] }, "-",
-                           { $substr: ["$month", 2, - 1] }
-                        ]
+            },
+            {
+               $match: {
+                  $and: [
+                     { "empEsaLink": { "$eq": empEsaLink } },
+                     { "ctsEmpId": { "$eq": ctsEmpId } },
+                     { "bufferDate": { "$gte": revenueStart } },
+                     { "bufferDate": { "$lte": revenueStop } }
+                  ]
+               }
+            },
+            {
+               $project: {
+                  "_id": "$_id",
+                  "month": "$month",
+                  "days": { $toInt: "$days" },
+                  "reason": "$reason"
+               }
+            },
+            {
+               $addFields: {
+                  month: {
+                     $let: {
+                        vars: {
+                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                        },
+                        in: {
+                           $concat: [
+                              { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$month", 0, 2] } }] }, "-",
+                              { $substr: ["$month", 2, - 1] }
+                           ]
+                        }
                      }
                   }
                }
             }
-         }
-      ]).toArray((err, bufferArr) => {
-         if (err) {
-            reject("DB error in " + funcName + "function: " + err);
-         } else if (bufferArr.length >= 1) {
-            computeBufferDays(bufferArr).then((bufferDays) => {
-               bufferArr.push({ "totalDays": bufferDays });
+         ]).toArray((err, bufferArr) => {
+            if (err) {
+               reject("DB error in " + funcName + "function: " + err);
+            } else if (bufferArr.length >= 1) {
+               computeBufferDays(bufferArr).then((bufferDays) => {
+                  bufferArr.push({ "totalDays": bufferDays });
+                  resolve(bufferArr);
+               });
+            }
+            else {
                resolve(bufferArr);
-            });
-         }
-         else {
-            resolve(bufferArr);
-         }
-      });
+            }
+         });
+      }
    });
 }
 

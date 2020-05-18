@@ -88,7 +88,7 @@ libApp.get("/listAllProj", (_req, res) => {
 /* list employees in project */
 libApp.get("/listEmpInProj", (req, res) => {
     var esaId = req.body.esaId;
-    empObj.listEmployeeInProj(esaId).then((allEmpInProj) => {
+    empObj.listAssociates(esaId).then((allEmpInProj) => {
         res.json(allEmpInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

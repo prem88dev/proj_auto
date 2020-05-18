@@ -277,7 +277,6 @@ function computeRevenue(empProjection, revenueYear, callerName) {
          monthRevArr.push(getMonthlyRevenue(empProjection, revenueYear, monthIndex, funcName));
       }
       Promise.all(monthRevArr).then((monthRevenue) => {
-         logger.end();
          resolve(monthRevenue);
       });
    });

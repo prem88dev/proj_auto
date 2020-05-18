@@ -1,2 +1,7 @@
 node_modules/
 test.js
+log.txt
+package-lock.json
+package.json
+launch.json
+test_data/package-lock.json

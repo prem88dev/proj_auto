@@ -456,181 +456,181 @@ function getBuffer(empEsaLink, ctsEmpId, revenueYear, callerName) {
 
 
 /* get projection data for specific employee in selected project */
-function getProjection(recordId, revenueYear) {
+function getProjection(recordId, revenueYear, callerName) {
    let funcName = getProjection.name;
    return new Promise((resolve, reject) => {
       if (revenueYear === undefined || revenueYear === "") {
          reject(funcName + ": Revenue year is not provided");
       } else if (recordId === undefined || recordId === "") {
          reject(funcName + ": Record id is not provided");
+      } else {
+         let recordObjId = new ObjectId(recordId);
+         let intRevenueYear = parseInt(revenueYear, 10);
+         let revenueStart = new Date(intRevenueYear, 0, 2);
+         revenueStart.setUTCHours(0, 0, 0, 0);
+         let revenueStop = new Date(intRevenueYear, 12, 1);
+         revenueStop.setUTCHours(0, 0, 0, 0);
+         db = dbObj.getDb();
+         db.collection(empProjColl).aggregate([
+            {
+               $lookup: {
+                  from: "esa_proj",
+                  localField: "empEsaLink",
+                  foreignField: "empEsaLink",
+                  as: "empEsaProj"
+               }
+            },
+            {
+               $unwind: "$empEsaProj"
+            },
+            {
+               $lookup: {
+                  from: "wrk_loc",
+                  localField: "cityCode",
+                  foreignField: "cityCode",
+                  as: "empEsaLoc"
+               }
+            },
+            {
+               $unwind: "$empEsaLoc"
+            },
+            {
+               $match: {
+                  "_id": recordObjId
+               }
+            },
+            {
+               $project: {
+                  "_id": "$_id",
+                  "esaId": { $toInt: "$empEsaProj.esaId" },
+                  "esaDesc": "$empEsaProj.esaDesc",
+                  "projName": "$projName",
+                  "ctsEmpId": { $toInt: "$ctsEmpId" },
+                  "empFname": "$empFname",
+                  "empMname": "$empMname",
+                  "empLname": "$empLname",
+                  "lowesUid": "$lowesUid",
+                  "deptName": "$deptName",
+                  "sowStart": "$sowStart",
+                  "sowStop": "$sowStop",
+                  "foreseenSowStop": "$foreseenSowStop",
+                  "cityCode": "$empEsaLoc.cityCode",
+                  "cityName": "$empEsaLoc.cityName",
+                  "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
+                  "billRatePerHr": { $toInt: "$billRatePerHr" },
+                  "currency": "$empEsaProj.currency",
+                  "empEsaLink": "$empEsaLink"
+               }
+            },
+            {
+               $addFields: {
+                  sowStart: {
+                     $cond: {
+                        if: { $ne: ["$sowStart", ""] }, then: {
+                           $let: {
+                              vars: {
+                                 monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                              },
+                              in: {
+                                 $concat: [
+                                    { $toString: { $toInt: { $substr: ["$sowStart", 0, 2] } } }, "-",
+                                    { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStart", 2, 2] } }] }, "-",
+                                    { $substr: ["$sowStart", 4, -1] }
+                                 ]
+                              }
+                           }
+                        }, else: "$sowStart"
+                     }
+                  },
+                  sowStop: {
+                     $cond: {
+                        if: { $ne: ["$sowStop", ""] }, then: {
+                           $let: {
+                              vars: {
+                                 monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                              },
+                              in: {
+                                 $concat: [
+                                    { $toString: { $toInt: { $substr: ["$sowStop", 0, 2] } } }, "-",
+                                    { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStop", 2, 2] } }] }, "-",
+                                    { $substr: ["$sowStop", 4, -1] }
+                                 ]
+                              }
+                           }
+                        }, else: "$sowStop"
+                     }
+                  },
+                  foreseenSowStop: {
+                     $cond: {
+                        if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                           $let: {
+                              vars: {
+                                 monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                              },
+                              in: {
+                                 $concat: [
+                                    { $toString: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } } }, "-",
+                                    { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } }] }, "-",
+                                    { $substr: ["$foreseenSowStop", 4, -1] }
+                                 ]
+                              }
+                           }
+                        }, else: "$foreseenSowStop"
+                     }
+                  }
+               }
+            }
+         ]).toArray(async (err, empProjection) => {
+            if (err) {
+               reject("DB error in " + funcName + " function: " + err);
+            } else if (empProjection.length === 1) {
+               let empEsaLink = empProjection[0].empEsaLink;
+               let strCtsEmpId = `${empProjection[0].ctsEmpId}`;
+               let cityCode = empProjection[0].cityCode;
+
+               await getYearlySelfLeaves(empEsaLink, strCtsEmpId, revenueYear, funcName).then((selfLeaveArr) => {
+                  if (selfLeaveArr.length === 0) {
+                     empProjection.push({ "leaves": ["No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+                  } else {
+                     empProjection.push({ "leaves": selfLeaveArr });
+                  }
+               }).catch((getYearlySelfLeavesErr) => { reject(getYearlySelfLeavesErr); });
+
+               await locObj.getYearlyLocationLeaves(cityCode, revenueYear, funcName).then((locHolArr) => {
+                  if (locHolArr.length === 0) {
+                     empProjection.push({ "publicHolidays": ["No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+                  } else {
+                     empProjection.push({ "publicHolidays": locHolArr });
+                  }
+               }).catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
+
+               await splWrkObj.getSplWrkDays(empEsaLink, strCtsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
+                  if (splWrkArr.length === 0) {
+                     empProjection.push({ "specialWorkDays": ["No additional workdays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+                  } else {
+                     empProjection.push({ "specialWorkDays": splWrkArr });
+                  }
+               }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
+
+               await getBuffer(empEsaLink, strCtsEmpId, revenueYear, funcName).then((bufferArr) => {
+                  if (bufferArr.length === 0) {
+                     empProjection.push({ "buffers": ["No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
+                  } else {
+                     empProjection.push({ "buffers": bufferArr });
+                  }
+               }).catch((getBufferErr) => { reject(getBufferErr); });
+
+               revObj.computeRevenue(empProjection, revenueYear, funcName).then((revenueArr) => {
+                  empProjection.push({ "revenue": revenueArr });
+                  resolve(empProjection);
+               }).catch((computeRevenueErr) => { reject(computeRevenueErr); });
+            } else if (empProjection.length === 0) {
+               reject(funcName + ": No records found")
+            } else if (empProjection.length > 1) {
+               reject(funcName + ": More than one record found");
+            }
+         });
       }
-
-      let recordObjId = new ObjectId(recordId);
-      let intRevenueYear = parseInt(revenueYear, 10);
-      let revenueStart = new Date(intRevenueYear, 0, 2);
-      revenueStart.setUTCHours(0, 0, 0, 0);
-      let revenueStop = new Date(intRevenueYear, 12, 1);
-      revenueStop.setUTCHours(0, 0, 0, 0);
-      db = dbObj.getDb();
-      db.collection(empProjColl).aggregate([
-         {
-            $lookup: {
-               from: "esa_proj",
-               localField: "empEsaLink",
-               foreignField: "empEsaLink",
-               as: "empEsaProj"
-            }
-         },
-         {
-            $unwind: "$empEsaProj"
-         },
-         {
-            $lookup: {
-               from: "wrk_loc",
-               localField: "cityCode",
-               foreignField: "cityCode",
-               as: "empEsaLoc"
-            }
-         },
-         {
-            $unwind: "$empEsaLoc"
-         },
-         {
-            $match: {
-               "_id": recordObjId
-            }
-         },
-         {
-            $project: {
-               "_id": "$_id",
-               "esaId": { $toInt: "$empEsaProj.esaId" },
-               "esaDesc": "$empEsaProj.esaDesc",
-               "projName": "$projName",
-               "ctsEmpId": { $toInt: "$ctsEmpId" },
-               "empFname": "$empFname",
-               "empMname": "$empMname",
-               "empLname": "$empLname",
-               "lowesUid": "$lowesUid",
-               "deptName": "$deptName",
-               "sowStart": "$sowStart",
-               "sowStop": "$sowStop",
-               "foreseenSowStop": "$foreseenSowStop",
-               "cityCode": "$empEsaLoc.cityCode",
-               "cityName": "$empEsaLoc.cityName",
-               "wrkHrPerDay": { $toInt: "$wrkHrPerDay" },
-               "billRatePerHr": { $toInt: "$billRatePerHr" },
-               "currency": "$empEsaProj.currency",
-               "empEsaLink": "$empEsaLink"
-            }
-         },
-         {
-            $addFields: {
-               sowStart: {
-                  $cond: {
-                     if: { $ne: ["$sowStart", ""] }, then: {
-                        $let: {
-                           vars: {
-                              monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                           },
-                           in: {
-                              $concat: [
-                                 { $toString: { $toInt: { $substr: ["$sowStart", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStart", 2, 2] } }] }, "-",
-                                 { $substr: ["$sowStart", 4, -1] }
-                              ]
-                           }
-                        }
-                     }, else: "$sowStart"
-                  }
-               },
-               sowStop: {
-                  $cond: {
-                     if: { $ne: ["$sowStop", ""] }, then: {
-                        $let: {
-                           vars: {
-                              monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                           },
-                           in: {
-                              $concat: [
-                                 { $toString: { $toInt: { $substr: ["$sowStop", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStop", 2, 2] } }] }, "-",
-                                 { $substr: ["$sowStop", 4, -1] }
-                              ]
-                           }
-                        }
-                     }, else: "$sowStop"
-                  }
-               },
-               foreseenSowStop: {
-                  $cond: {
-                     if: { $ne: ["$foreseenSowStop", ""] }, then: {
-                        $let: {
-                           vars: {
-                              monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                           },
-                           in: {
-                              $concat: [
-                                 { $toString: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } } }, "-",
-                                 { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } }] }, "-",
-                                 { $substr: ["$foreseenSowStop", 4, -1] }
-                              ]
-                           }
-                        }
-                     }, else: "$foreseenSowStop"
-                  }
-               }
-            }
-         }
-      ]).toArray(async (err, empProjection) => {
-         if (err) {
-            reject("DB error in " + funcName + " function: " + err);
-         } else if (empProjection.length === 1) {
-            let empEsaLink = empProjection[0].empEsaLink;
-            let strCtsEmpId = `${empProjection[0].ctsEmpId}`;
-            let cityCode = empProjection[0].cityCode;
-
-            await getYearlySelfLeaves(empEsaLink, strCtsEmpId, revenueYear, funcName).then((selfLeaveArr) => {
-               if (selfLeaveArr.length === 0) {
-                  empProjection.push({ "leaves": ["No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-               } else {
-                  empProjection.push({ "leaves": selfLeaveArr });
-               }
-            }).catch((getYearlySelfLeavesErr) => { reject(getYearlySelfLeavesErr); });
-
-            await locObj.getYearlyLocationLeaves(cityCode, revenueYear, funcName).then((locHolArr) => {
-               if (locHolArr.length === 0) {
-                  empProjection.push({ "publicHolidays": ["No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-               } else {
-                  empProjection.push({ "publicHolidays": locHolArr });
-               }
-            }).catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
-
-            await splWrkObj.getSplWrkDays(empEsaLink, strCtsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
-               if (splWrkArr.length === 0) {
-                  empProjection.push({ "specialWorkDays": ["No additional workdays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-               } else {
-                  empProjection.push({ "specialWorkDays": splWrkArr });
-               }
-            }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
-
-            await getBuffer(empEsaLink, strCtsEmpId, revenueYear, funcName).then((bufferArr) => {
-               if (bufferArr.length === 0) {
-                  empProjection.push({ "buffers": ["No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-               } else {
-                  empProjection.push({ "buffers": bufferArr });
-               }
-            }).catch((getBufferErr) => { reject(getBufferErr); });
-
-            revObj.computeRevenue(empProjection, revenueYear, funcName).then((revenueArr) => {
-               empProjection.push({ "revenue": revenueArr });
-               resolve(empProjection);
-            }).catch((computeRevenueErr) => { reject(computeRevenueErr); });
-         } else if (empProjection.length === 0) {
-            reject(funcName + ": No records found")
-         } else if (empProjection.length > 1) {
-            reject(funcName + ": More than one record found");
-         }
-      });
    });
 }
 

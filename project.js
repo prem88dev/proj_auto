@@ -64,17 +64,17 @@ function calcProjectRevenue(allEmpRevArr, projectRevenue, empDataIdx) {
 }
 
 
-function getProjectRevenue(esaId, revenueYear) {
-   let allEmployeeProjectionArr = [];
-   let empInProjArr = [];
-   return new Promise((resolve, reject) => {
+function getProjectRevenue(esaId, revenueYear, callerName) {
+   let funcName = getProjectRevenue.name;
+   let empRevArr = [];
+   return new Promise((resolve, _reject) => {
       empObj.listAssociates(esaId).then((empInProj) => {
          empInProj.forEach((employee) => {
             let empObjId = employee._id.toString();
-            allEmployeeProjectionArr.push(empObj.getProjection(empObjId, revenueYear));
+            empRevArr.push(empObj.getProjection(empObjId, revenueYear, funcName));
          });
       }).then(() => {
-         Promise.all(allEmployeeProjectionArr).then((allEmpRevArr) => {
+         Promise.all(empRevArr).then((allEmpRevArr) => {
             calcProjectRevenue(allEmpRevArr, "", 0).then((projectRevenue) => {
                let prjRevArr = [];
                if (projectRevenue.length > 0) {

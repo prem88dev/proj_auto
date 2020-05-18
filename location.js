@@ -16,7 +16,7 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
          let revenueStart = new Date(calcYear, 0, 2);
          revenueStart.setUTCHours(0, 0, 0, 0);
          let revenueStop = new Date(calcYear, 12, 1);
-         revenueStop.setUTCHours(23, 59, 59, 0);
+         revenueStop.setUTCHours(0, 0, 0, 0);
          dbObj.getDb().collection(locLeaveColl).aggregate([
             {
                $project: {

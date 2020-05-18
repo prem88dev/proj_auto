@@ -24,7 +24,7 @@ function calcMonthLeaves(leaveArrObj, monthIndex, startDate, stopDate) {
                   let leaveStart = new Date(leaveObj.startDate);
                   leaveStart.setHours(0, 0, 0, 0);
                   let leaveStop = new Date(leaveObj.stopDate);
-                  leaveStop.setHours(25, 59, 59, 0);
+                  leaveStop.setHours(0, 0, 0, 0);
 
                   commObj.getDaysBetween(leaveStart, leaveStop, true).then((daysBetween) => {
                      leaveDays += parseInt(daysBetween, 10);
@@ -39,14 +39,15 @@ function calcMonthLeaves(leaveArrObj, monthIndex, startDate, stopDate) {
 
 
 function getBufferHours(empBufferArr, monthIndex, wrkHrPerDay, callerName) {
+   let funcName = getBufferHours.name;
    let bufferHours = 0;
    return new Promise(async (resolve, reject) => {
       if (empBufferArr === undefined || empBufferArr === "") {
-         reject(getBufferHours.name + ": Buffer array is not defined");
+         reject(funcName + ": Buffer array is not defined");
       } else if (monthIndex === undefined || monthIndex === "") {
-         reject(getBufferHours.name + ": Month index is not provided");
+         reject(funcName + ": Month index is not provided");
       } else if (wrkHrPerDay === undefined || wrkHrPerDay === "") {
-         reject(getBufferHours.name + ": Billing hours per day is not provided");
+         reject(funcName + ": Billing hours per day is not provided");
       } else {
          await empBufferArr.forEach((empBuffer, idx) => {
             if (idx < (empBufferArr.length - 1)) {
@@ -285,7 +286,7 @@ function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
       let intBufferHour = 0;
       await getBufferHours(empProjection[4].buffers, monthIndex, wrkHrPerDay, funcName).then((bufferHours) => {
          intBufferHour = parseInt(bufferHours, 10);
-      })
+      }).catch((getBufferHoursErr) => { reject(getBufferHoursErr); });
 
       await calcRevenueHour(empProjection, calcStartDate, calcStopDate, "", funcName).then((revenueHourArr) => {
          let revenueMonth = dateFormat(calcStartDate, "mmm-yyyy");

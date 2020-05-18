@@ -373,8 +373,8 @@ function getSplWrkWkEndHrs(empEsaLink, ctsEmpId, cityCode, billHrPerDay, splWrkS
          reject(callerName + " -> " + funcName + ": Leave stop date is not provided");
       } else {
          getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, funcName).then((empSplWrkArr) => {
-            getLocSplWrk(cityCode, splWrkStart, splWrkStop, getSplWrkWkEndHrs.name).then((locSplWrkArr) => {
-               getWeekEndHours(empSplWrkArr, locSplWrkArr, getSplWrkWkEndHrs.name).then((weekEndHours) => {
+            getLocSplWrk(cityCode, splWrkStart, splWrkStop, funcName).then((locSplWrkArr) => {
+               getWeekEndHours(empSplWrkArr, locSplWrkArr, funcName).then((weekEndHours) => {
                   resolve(weekEndHours);
                });
             }).catch((getLocSplWrkErr) => { reject(getLocSplWrkErr) });

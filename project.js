@@ -29,14 +29,19 @@ function listAllProjects() {
 }
 
 
-function addEmpRevenue(employeeRevenue, projectRevenue) {
+function addEmpRevenue(employeeRevenue, projectRevenue, callerName) {
+   let funcName = addEmpRevenue.name;
    return new Promise(async (resolve, _reject) => {
       if (projectRevenue === undefined || projectRevenue === "") {
-         resolve(employeeRevenue);
+         let projRevArr = [];
+         await employeeRevenue.forEach((empRevDtl) => {
+            projRevArr.push({"revenueMonth": empRevDtl.revenueMonth, "revenueAmount": empRevDtl.revenueAmount, "cmiRevenueAmount": empRevDtl.cmiRevenueAmount});
+         });
+         resolve(projRevArr);
       } else if (projectRevenue.length > 0) {
          await employeeRevenue.forEach(async (empRevDtl) => {
             await projectRevenue.forEach((projRevDtl) => {
-               if (projRevDtl.month === empRevDtl.month) {
+               if (projRevDtl.revenueMonth === empRevDtl.revenueMonth) {
                   projRevDtl.revenueAmount += empRevDtl.revenueAmount;
                   projRevDtl.cmiRevenueAmount += empRevDtl.cmiRevenueAmount;
                }
@@ -50,14 +55,16 @@ function addEmpRevenue(employeeRevenue, projectRevenue) {
 }
 
 
-function calcProjectRevenue(allEmpRevArr, projectRevenue, empDataIdx) {
+function calcProjectRevenue(allEmpRevArr, projectRevenue, empDataIdx, callerName) {
+   let funcName = calcProjectRevenue.name;
    return new Promise((resolve, _reject) => {
-      if (parseInt(empDataIdx, 10) === allEmpRevArr.length) {
+      let empIdx = parseInt(empDataIdx, 10)
+      if (empIdx === allEmpRevArr.length) {
          return resolve(projectRevenue);
       } else {
-         addEmpRevenue(allEmpRevArr[empDataIdx][5].revenue, projectRevenue).then((projRev) => {
-            let nextDataIdx = parseInt(empDataIdx, 10) + 1;
-            return resolve(calcProjectRevenue(allEmpRevArr, projRev, nextDataIdx));
+         addEmpRevenue(allEmpRevArr[empIdx][5].revenue, projectRevenue, funcName).then((projRev) => {
+            let nextDataIdx = empIdx + 1;
+            return resolve(calcProjectRevenue(allEmpRevArr, projRev, nextDataIdx, funcName));
          });
       }
    });
@@ -75,7 +82,7 @@ function getProjectRevenue(esaId, revenueYear, callerName) {
          });
       }).then(() => {
          Promise.all(empRevArr).then((allEmpRevArr) => {
-            calcProjectRevenue(allEmpRevArr, "", 0).then((projectRevenue) => {
+            calcProjectRevenue(allEmpRevArr, "", 0, funcName).then((projectRevenue) => {
                let prjRevArr = [];
                if (projectRevenue.length > 0) {
                   projectRevenue.forEach((prjDtl) => {

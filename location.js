@@ -140,7 +140,6 @@ function getYearlyLocationLeaves(cityCode, revenueYear) {
 }
 
 
-
 function getLocHolDates(cityCode, locHolStart, locHolStop, callerName) {
    return new Promise((resolve, reject) => {
       if (cityCode === undefined || cityCode === "") {

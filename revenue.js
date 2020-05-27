@@ -1,41 +1,5 @@
-const commObj = require("./utility");
 const dateTime = require("date-and-time");
 const dateFormat = require("dateformat");
-
-var fs = require('fs')
-var logger = fs.createWriteStream('log.txt');
-
-
-function calcMonthLeaves(leaveArrObj, monthIndex, startDate, stopDate) {
-   return new Promise(async (resolve, reject) => {
-      if (leaveArrObj === undefined || leaveArrObj === "") {
-         reject(calcMonthLeaves.name + ": Employee leave array is not provided");
-      } else if (monthIndex === undefined || monthIndex === "") {
-         reject(calcMonthLeaves.name + ": Month index is not provided");
-      } else if (startDate === undefined || startDate === "") {
-         reject(calcMonthLeaves.name + ": Revenue month start date is not provided");
-      } else if (stopDate === undefined || stopDate === "") {
-         reject(calcMonthLeaves.name + ": Revenue month end date is not provided");
-      } else {
-         let leaveDays = 0;
-         await leaveArrObj.forEach((leaveObj, idx) => {
-            if (idx < (leaveArrObj.length - 1)) {
-               if (leaveObj.startDate !== undefined && leaveObj.startDate != "" && leaveObj.stopDate !== undefined && leaveObj.stopDate != "") {
-                  let leaveStart = new Date(leaveObj.startDate);
-                  leaveStart.setHours(0, 0, 0, 0);
-                  let leaveStop = new Date(leaveObj.stopDate);
-                  leaveStop.setHours(0, 0, 0, 0);
-
-                  commObj.getDaysBetween(leaveStart, leaveStop, true).then((daysBetween) => {
-                     leaveDays += parseInt(daysBetween, 10);
-                  });
-               }
-            }
-         });
-         resolve(leaveDays);
-      }
-   });
-}
 
 
 function getBufferHours(empBufferArr, monthIndex, wrkHrPerDay, callerName) {
@@ -313,7 +277,6 @@ function computeRevenue(empProjection, revenueYear, callerName) {
          monthRevArr.push(getMonthlyRevenue(empProjection, revenueYear, monthIndex, funcName));
       }
       Promise.all(monthRevArr).then((monthRevenue) => {
-         logger.end();
          resolve(monthRevenue);
       });
    });

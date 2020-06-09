@@ -1,98 +1,194 @@
 [
 	{
-		"billYear": "2019",
-		"billMonth": "10",
+		"billYear": 2019,
+		"billMonth": 10,
 		"billStart": "05102019",
-		"billEnd": "01112019"
+		"billEnd": "01112019",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2019",
-		"billMonth": "11",
+		"billYear": 2019,
+		"billMonth": 11,
 		"billStart": "02112019",
-		"billEnd": "29112019"
+		"billEnd": "29112019",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2019",
-		"billMonth": "12",
+		"billYear": 2019,
+		"billMonth": 12,
 		"billStart": "30112019",
-		"billEnd": "03012020"
+		"billEnd": "03012020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "1",
+		"billYear": 2020,
+		"billMonth": 1,
 		"billStart": "04012020",
-		"billEnd": "31012020"
+		"billEnd": "31012020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "2",
+		"billYear": 2020,
+		"billMonth": 2,
 		"billStart": "01022020",
-		"billEnd": "28022020"
+		"billEnd": "28022020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "3",
+		"billYear": 2020,
+		"billMonth": 3,
 		"billStart": "29022020",
-		"billEnd": "03042020"
+		"billEnd": "03042020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "4",
+		"billYear": 2020,
+		"billMonth": 4,
 		"billStart": "04042020",
-		"billEnd": "01052020"
+		"billEnd": "01052020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "5",
+		"billYear": 2020,
+		"billMonth": 5,
 		"billStart": "02052020",
-		"billEnd": "29052020"
+		"billEnd": "29052020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "6",
+		"billYear": 2020,
+		"billMonth": 6,
 		"billStart": "30052020",
-		"billEnd": "03072020"
+		"billEnd": "03072020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "7",
+		"billYear": 2020,
+		"billMonth": 7,
 		"billStart": "04072020",
-		"billEnd": "31072020"
+		"billEnd": "31072020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "8",
+		"billYear": 2020,
+		"billMonth": 8,
 		"billStart": "01082020",
-		"billEnd": "28082020"
+		"billEnd": "28082020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "9",
+		"billYear": 2020,
+		"billMonth": 9,
 		"billStart": "29082020",
-		"billEnd": "02102020"
+		"billEnd": "02102020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "10",
+		"billYear": 2020,
+		"billMonth": 10,
 		"billStart": "03102020",
-		"billEnd": "30102020"
+		"billEnd": "30102020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "11",
+		"billYear": 2020,
+		"billMonth": 11,
 		"billStart": "31102020",
-		"billEnd": "27112020"
+		"billEnd": "27112020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2020",
-		"billMonth": "12",
+		"billYear": 2020,
+		"billMonth": 12,
 		"billStart": "28112020",
-		"billEnd": "01012021"
+		"billEnd": "01012021",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	},
 	{
-		"billYear": "2021",
-		"billMonth": "1",
+		"billYear": 2021,
+		"billMonth": 1,
 		"billStart": "02012020",
-		"billEnd": "29012020"
+		"billEnd": "29012020",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
 	}
 ]

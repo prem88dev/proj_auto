@@ -6,11 +6,13 @@ const leaveHour = 4;
 const mSecInDay = 86400000;
 
 
-function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName) {
+function getEmpSplWrk(esaId, esaSubType, ctsEmpId, splWrkStart, splWrkStop, callerName) {
    let funcName = getEmpSplWrk.name;
    return new Promise((resolve, reject) => {
-      if (empEsaLink === undefined || empEsaLink === "") {
-         reject(callerName + " -> " + funcName + ": Linker ID is not provided");
+      if (esaId === undefined || esaId === "") {
+         reject(callerName + " -> " + funcName + ": ESA ID not provided");
+      } else if (esaSubType === undefined || esaSubType === "") {
+         reject(callerName + " -> " + funcName + ": ESA sub type is not provided");
       } else if (ctsEmpId === undefined || ctsEmpId === "") {
          reject(callerName + " -> " + funcName + ": Employee ID is not provided");
       } else if (splWrkStart === undefined || splWrkStart === "") {
@@ -18,6 +20,9 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
       } else if (splWrkStop === undefined || splWrkStop === "") {
          reject(callerName + " -> " + funcName + ": Leave stop date is not provided");
       } else {
+         let iEsaId = parseInt(esaId, 10);
+         let iEsaSubType = parseInt(esaSubType, 10);
+         let iCtsEmpId = parseInt(ctsEmpId, 10);
          let refSplWrkStart = new Date(splWrkStart);
          refSplWrkStart.setUTCHours(0, 0, 0, 0);
          let refSplWrkStop = new Date(splWrkStop);
@@ -26,11 +31,12 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
             {
                $project: {
                   "_id": "$_id",
-                  "empEsaLink": "$empEsaLink",
+                  "esaId": "$esaId",
+                  "esaSubType": "$esaSubType",
                   "ctsEmpId": "$ctsEmpId",
                   "startDate": "$startDate",
                   "stopDate": "$stopDate",
-                  "halfDay": "$halfDay",
+                  "workHour": "$workHour",
                   "reason": "$reason",
                   "workStart": {
                      $dateFromParts: {
@@ -52,8 +58,9 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
             },
             {
                $match: {
-                  "empEsaLink": empEsaLink,
-                  "ctsEmpId": ctsEmpId,
+                  "esaId": iEsaId,
+                  "esaSubType": iEsaSubType,
+                  "ctsEmpId": iCtsEmpId,
                   $or: [
                      {
                         $and: [
@@ -92,15 +99,7 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
                   "_id": "$_id",
                   "startDate": "$workStart",
                   "stopDate": "$workStop",
-                  "days": {
-                     $cond: {
-                        if: { $eq: ["$halfDay", "Y"] }, then: {
-                           $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, (mSecInDay * 2)]
-                        },
-                        else: { $divide: [{ $add: [{ $subtract: ["$workStop", "$workStart"] }, mSecInDay] }, mSecInDay] }
-                     }
-                  },
-                  "halfDay": "$halfDay",
+                  "workHour": "$workHour",
                   "reason": "$reason"
                }
             },
@@ -136,17 +135,17 @@ function getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, callerName)
                   }
                }
             }
-         ]).toArray((err, empSplWrkArr) => {
+         ]).toArray(async (err, empSplWrkArr) => {
             if (err) {
                reject("DB error in " + funcName + ": " + err);
-            } else if (empSplWrkArr.length >= 1) {
-               commObj.countAllDays(empSplWrkArr, funcName).then((allDaysInLeave) => {
-                  commObj.countWeekdays(empSplWrkArr, funcName).then((workDaysInLeave) => {
-                     empSplWrkArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
-                     resolve(empSplWrkArr);
-                  });
-               });
             } else {
+               if (empSplWrkArr.length >= 1) {
+                  let totalWorkHours = 0;
+                  await empSplWrkArr.forEach((empSplWrk) => {
+                     totalWorkHours += empSplWrk.workHour;
+                  });
+                  empSplWrkArr.push({ "totalHours": totalWorkHours });
+               }
                resolve(empSplWrkArr);
             }
          });
@@ -384,11 +383,13 @@ function getSplWrkWkEndHrs(empEsaLink, ctsEmpId, cityCode, billHrPerDay, splWrkS
 }
 
 
-function getSplWrkDays(empEsaLink, ctsEmpId, cityCode, splWrkStart, splWrkStop, callerName) {
+function getSplWrkDays(esaId, esaSubType, ctsEmpId, cityCode, splWrkStart, splWrkStop, callerName) {
    let funcName = getSplWrkDays.name;
    return new Promise((resolve, reject) => {
-      if (empEsaLink === undefined || empEsaLink === "") {
-         reject(callerName + " -> " + funcName + ": ESA Linker ID not provided");
+      if (esaId === undefined || esaId === "") {
+         reject(callerName + " -> " + funcName + ": ESA ID not provided");
+      } else if (esaSubType === undefined || esaSubType === "") {
+         reject(callerName + " -> " + funcName + ": ESA sub type is not provided");
       } else if (ctsEmpId === undefined || ctsEmpId === "") {
          reject(callerName + " -> " + funcName + ": Employee ID is not provided");
       } else if (cityCode === undefined || cityCode === "") {
@@ -398,7 +399,7 @@ function getSplWrkDays(empEsaLink, ctsEmpId, cityCode, splWrkStart, splWrkStop, 
       } else if (splWrkStop === undefined || splWrkStop === "") {
          reject(callerName + " -> " + funcName + ": Stop date is not provided");
       } else {
-         getEmpSplWrk(empEsaLink, ctsEmpId, splWrkStart, splWrkStop, funcName).then((empSplWrkArr) => {
+         getEmpSplWrk(esaId, esaSubType, ctsEmpId, splWrkStart, splWrkStop, funcName).then((empSplWrkArr) => {
             getLocSplWrk(cityCode, splWrkStart, splWrkStop, funcName).then((locSplWrkArr) => {
                let splWrkArr = { "empSplWrk": empSplWrkArr, "locSplWrk": locSplWrkArr };
                resolve(splWrkArr);

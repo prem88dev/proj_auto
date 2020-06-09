@@ -12,72 +12,9 @@ libApp.use(bp.urlencoded({ extended: true }));
 libApp.use(bp.json());
 libApp.use(cors());
 
-
-/* get project wise trend */
-libApp.get("/getLeave", (req, res) => {
-    let noError = true;
-    if (req.body.empEsaLink === undefined || req.body.empEsaLink == "") {
-        res.json("Require empEsaLink");
-        noError = false;
-    } else if (req.body.ctsEmpId === undefined || req.body.ctsEmpId == "") {
-        res.json("Require ctsEmpId");
-        noError = false;
-    } else if (req.body.revenueYear === undefined || req.body.revenueYear == "") {
-        res.json("Require revenueYear");
-        noError = false;
-    } else if (req.body.monthLeaveIdc !== undefined && req.body.monthLeaveIdc != "") {
-        if (req.body.monthIndex === undefined || req.body.monthIndex == "") {
-            res.json("Require monthIndex [1 - 12]");
-            noError = false;
-        } else if (1 > parseInt(req.body.monthIndex, 10) || 12 < parseInt(req.body.monthIndex, 10)) {
-            res.json("Incorrect month");
-            noError = false;
-        }
-
-        if (noError === true) {
-            let empEsaLink = req.body.empEsaLink;
-            let ctsEmpId = req.body.ctsEmpId;
-            let revenueYear = req.body.revenueYear;
-            let monthIndex = req.body.monthIndex;
-            empObj.getYearlySelfDays(empEsaLink, ctsEmpId, revenueYear, monthIndex).then((leaves) => {
-                res.json(leaves);
-            }).catch((err) => {
-                errobj = { errcode: 500, error: err }
-                res.json(errobj);
-            });
-        }
-    }
-});
-
-
-/* get project wise trend */
-libApp.get("/getBuffer", (req, res) => {
-    let empEsaLink = req.body.empEsaLink;
-    let ctsEmpId = req.body.ctsEmpId;
-    let revenueYear = req.body.revenueYear;
-    empObj.getBuffer(empEsaLink, ctsEmpId, revenueYear).then((buffers) => {
-        res.json(buffers);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
-/* get project wise trend */
-libApp.get("/projWiseTrend", (req, res) => {
-    var esaId = req.body.esaId;
-    var revenueYear = req.body.revenueYear;
-    projObj.getProjectRevenue(esaId, revenueYear).then((projectRevenue) => {
-        res.json(projectRevenue);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
 /* list projects */
-libApp.get("/listAllProj", (_req, res) => {
-    projObj.listAllProjects().then((projectList) => {
+libApp.get("/projectList", (_req, res) => {
+    projObj.listAllProjects("main").then((projectList) => {
         res.json(projectList);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -85,10 +22,11 @@ libApp.get("/listAllProj", (_req, res) => {
     });
 });
 
+
 /* list employees in project */
-libApp.get("/listEmpInProj", (req, res) => {
-    var esaId = req.body.esaId;
-    empObj.listAssociates(esaId).then((allEmpInProj) => {
+libApp.get("/workforce", (req, res) => {
+    var esaId = req.query.esaId;
+    empObj.listAssociates(esaId, "main").then((allEmpInProj) => {
         res.json(allEmpInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -96,33 +34,40 @@ libApp.get("/listEmpInProj", (req, res) => {
     });
 });
 
-//Get all active employee projections of specific project
-libApp.get("/getEmpDtl", (req, res) => {
-    let recordId = req.body.recordId;
+/* get one project revenue */
+libApp.get("/projectRevenue", (req, res) => {
+    var esaId = req.query.esaId;
+    var revenueYear = req.query.revenueYear;
+    projObj.getProjectRevenue(esaId, revenueYear, "main").then((projectRevenue) => {
+        res.json(projectRevenue);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        res.json(errobj);
+    });
+});
+
+/* get all project revenue */
+libApp.get("/dashboard", (req, res) => {
+    var revenueYear = req.query.revenueYear;
+    projObj.getAllProjectRevenue(revenueYear, "main").then((projectRevenue) => {
+        res.json(projectRevenue);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        res.json(errobj);
+    });
+});
+
+/* get projection of one employee */
+libApp.get("/employeeDetail", (req, res) => {
+    let empRecId = req.body.empRecId;
     let revenueYear = req.body.revenueYear;
-    empObj.getProjection(recordId, revenueYear).then((empDtl) => {
+    empObj.getProjection(empRecId, revenueYear, "main").then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         res.json(errobj);
     });
 });
-
-//get leave days of all associates
-libApp.get("/testGetSelfDays", (req, res) => {
-    let empEsaLink = req.body.empEsaLink;
-    let ctsEmpId = req.body.ctsEmpId;
-    let cityCode = req.body.cityCode;
-    let leaveStart = req.body.leaveStart;
-    let leaveStop = req.body.leaveStop;
-    commObj.countPersonalWeekdays_test(empEsaLink, ctsEmpId, cityCode, leaveStart, leaveStop).then((leaveArr) => {
-        res.json(leaveArr);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
-});
-
 
 try {
     //initializing DB and start listening to port

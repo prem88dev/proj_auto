@@ -5,10 +5,12 @@
       "stopDate": "14012020",
       "halfDay": "Y",
       "reason": "test for 14-jan ext",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    },
    {
       "cityCode": "MRVL",
@@ -16,10 +18,12 @@
       "stopDate": "15012020",
       "halfDay": "N",
       "reason": "test for 15-jan ext",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    },
    {
       "cityCode": "MRVL",
@@ -27,10 +31,12 @@
       "stopDate": "13012020",
       "halfDay": "N",
       "reason": "test for 11-13 jan",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    },
    {
       "cityCode": "MRVL",
@@ -38,10 +44,12 @@
       "stopDate": "16012020",
       "halfDay": "Y",
       "reason": "test for 16-jan ext",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    },
    {
       "cityCode": "MRVL",
@@ -49,10 +57,12 @@
       "stopDate": "07012020",
       "halfDay": "N",
       "reason": "test for 7-jan",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    },
    {
       "cityCode": "MRVL",
@@ -60,10 +70,12 @@
       "stopDate": "26012020",
       "halfDay": "Y",
       "reason": "test for 26-jan",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    },
    {
       "cityCode": "MRVL",
@@ -71,10 +83,12 @@
       "stopDate": "28012020",
       "halfDay": "Y",
       "reason": "test for 28-jan",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    },
    {
       "cityCode": "MRVL",
@@ -82,9 +96,11 @@
       "stopDate": "20012020",
       "halfDay": "Y",
       "reason": "test for 20-jan",
-      "addStamp": "",
-      "addId": "",
-      "updStamp": "",
-      "updId": ""
+      "editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
    }
 ]

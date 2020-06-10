@@ -17,7 +17,7 @@ function getBufferHours(empBufferArr, monthIndex, wrkHrPerDay, callerName) {
             if (idx < (empBufferArr.length - 1)) {
                let bufferMonth = new Date(dateTime.parse(empBuffer.month, "MMM-YYYY", true)).getMonth();
                if (monthIndex === bufferMonth) {
-                  bufferHours = parseInt(empBuffer.days, 10) * parseInt(wrkHrPerDay, 10);
+                  bufferHours = parseInt(empBuffer.hours, 10);
                }
             }
          });
@@ -30,8 +30,11 @@ function getBufferHours(empBufferArr, monthIndex, wrkHrPerDay, callerName) {
 function computeLeaveHour(leaveArr, leaveDate, wrkHrPerDay, callerName) {
    let funcName = computeLeaveHour.name;
    let leaveHour = 0;
-   return new Promise(async (resolve, _reject) => {
-      if ((leaveArr.length - 1) > 0) {
+   return new Promise(async (resolve, reject) => {
+      if ((leaveArr !== undefined && leaveArr !== "" && (leaveArr.length - 1) > 0) &&
+         (leaveDate !== undefined && leaveDate !== "") &&
+         (wrkHrPerDay !== undefined && wrkHrPerDay !== "")) {
+         let iWrkHourPerDay = parseInt(wrkHrPerDay, 10);
          await leaveArr.forEach((leave, idx) => {
             if (idx < (leaveArr.length - 1)) {
                let checkDate = new Date(leaveDate);
@@ -41,14 +44,22 @@ function computeLeaveHour(leaveArr, leaveDate, wrkHrPerDay, callerName) {
                let leaveStop = new Date(leave.stopDate);
                leaveStop.setHours(0, 0, 0, 0);
                if (checkDate.getTime() >= leaveStart.getTime() && checkDate.getTime() <= leaveStop.getTime()) {
-                  if (leave.halfDay === "Y") {
-                     if (leave.leaveHour !== undefined && leave.leaveHour !== "") {
-                        leaveHour = leave.leaveHour;
+                  if (leave.halfDay !== undefined && leave.halfDay !== "" && leave.halfDay === "Y") {
+                     if (leave.leaveHour === undefined || leave.leaveHour === "") {
+                        if (iWrkHourPerDay === 1) {
+                           leaveHour = iWrkHourPerDay;
+                        } else if (iWrkHourPerDay > 1) {
+                           if ((iWrkHourPerDay % 2) === 0) {
+                              leaveHour = iWrkHourPerDay / 2;
+                           } else {
+                              leaveHour = (iWrkHourPerDay + 1) / 2;
+                           }
+                        }
                      } else {
-                        leaveHour = 4;
+                        leaveHour = parseInt(leave.leaveHour, 10);
                      }
-                  } else {
-                     leaveHour = wrkHrPerDay;
+                  } else if (leave.halfDay !== undefined && leave.halfDay !== "" && leave.halfDay === "N") {
+                     leaveHour = iWrkHourPerDay;
                   }
                }
             }

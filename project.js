@@ -1,5 +1,6 @@
 const dbObj = require('./database');
 const empObj = require('./employee');
+const dateFormat = require("dateformat");
 const esaProjColl = "esa_proj";
 
 
@@ -105,22 +106,51 @@ function getProjectRevenue(esaId, revenueYear, callerName) {
 }
 
 
+function calcAnnualRevenue(dashboard, revenueYear, callerName) {
+   let funcName = calcAnnualRevenue.name;
+   let annualRevenue = [];
+   return new Promise((resolve, reject) => {
+      for (let monthIdx = 0; monthIdx <= 11; monthIdx++) {
+         let searchMonth = dateFormat(new Date(revenueYear, monthIdx, 1), "mmm-yyyy");
+         let revenueAmount = 0;
+         let cmiRevenueAmount = 0;
+         dashboard.forEach((project) => {
+            let projMonthDtl = project.revenue;
+            projMonthDtl.forEach((monthRevDtl) => {
+               if (monthRevDtl.revenueMonth === searchMonth) {
+                  revenueAmount += parseInt(monthRevDtl.revenueAmount, 10);
+                  cmiRevenueAmount += parseInt(monthRevDtl.cmiRevenueAmount, 10);
+               }
+            });
+         });
+         annualRevenue.push({ "revenueMonth": searchMonth, "revenueAmount": revenueAmount, "cmiRevenueAmount": cmiRevenueAmount });
+      }
+      resolve(annualRevenue);
+   });
+}
+
+
 function getAllProjectRevenue(revenueYear, callerName) {
    let funcName = getAllProjectRevenue.name;
    let allProjRevArr = [];
    let dashboard = [];
    return new Promise((resolve, reject) => {
-      listAllProjects().then(async (projectList) => {
-         await projectList.forEach((project) => {
+      listAllProjects().then((projectList) => {
+         projectList.forEach((project) => {
             allProjRevArr.push(getProjectRevenue(project._id, revenueYear, funcName));
          });
+      }).then(() => {
          Promise.all(allProjRevArr).then((allProjRev) => {
             allProjRev.forEach((project) => {
                let projId = project[0][0].esaId;
-               let revArr = project[project.length - 1].projectRevenue;
-               dashboard.push({ "esaId": projId, "revenue": revArr });
+               let projRevArr = project[project.length - 1].projectRevenue;
+               dashboard.push({ "esaId": projId, "revenue": projRevArr });
             });
-            resolve(dashboard);
+         }).then(async () => {
+            await calcAnnualRevenue(dashboard, revenueYear).then((revenueGrandTotal) => {
+               dashboard.push({ "esaId": "Grand Total", "revenue": revenueGrandTotal });
+               resolve(dashboard);
+            });
          });
       });
    });

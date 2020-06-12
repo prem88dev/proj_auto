@@ -94,6 +94,7 @@ function getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, revenueYear) {
                   "startDate": "$startDate",
                   "stopDate": "$stopDate",
                   "halfDay": "$halfDay",
+                  "leaveHour": "$leaveHour",
                   "reason": "$reason",
                   "leaveStart": {
                      $dateFromParts: {
@@ -164,6 +165,7 @@ function getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, revenueYear) {
                         else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
                      }
                   },
+                  "halfDay": "$halfDay",
                   "leaveHour": "$leaveHour",
                   "reason": "$reason"
                }

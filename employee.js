@@ -615,56 +615,38 @@ function getProjection(empRecId, revenueYear, callerName) {
                let ctsEmpId = empProjection[0].ctsEmpId;
                let cityCode = empProjection[0].cityCode;
 
-               getYearlySelfLeaves(empRecId, revenueYear, funcName)
-                  .then((selfLeaveArr) => {
+               getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, revenueYear, funcName).then((selfLeaveArr) => {
                   if (selfLeaveArr.length === 0) {
                      empProjection.push({ "leaves": ["No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
                   } else {
                      empProjection.push({ "leaves": selfLeaveArr });
                   }
-                  })
-                  .then(() => {
-                     locObj.getYearlyLocationLeaves(cityCode, revenueYear, funcName)
-                        .then((locHolArr) => {
+                  locObj.getYearlyLocationLeaves(cityCode, revenueYear, funcName).then((locHolArr) => {
                      if (locHolArr.length === 0) {
                         empProjection.push({ "publicHolidays": ["No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
                      } else {
                         empProjection.push({ "publicHolidays": locHolArr });
                      }
-                        })
-                        .catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
-                  })
-                  .then(() => {
-                     splWrkObj.getSplWrkDays(empRecId, cityCode, revenueStart, revenueStop, funcName)
-                        .then((splWrkArr) => {
+                     splWrkObj.getSplWrkDays(esaId, esaSubType, ctsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
                         if (splWrkArr.length === 0) {
                            empProjection.push({ "specialWorkDays": ["No additional workdays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
                         } else {
                            empProjection.push({ "specialWorkDays": splWrkArr });
                         }
-                        })
-                        .catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
-                  })
-                  .then(() => {
-                     getBuffer(empRecId, revenueYear, funcName)
-                        .then((bufferArr) => {
+                        getBuffer(esaId, esaSubType, ctsEmpId, revenueYear, funcName).then((bufferArr) => {
                            if (bufferArr.length === 0) {
                               empProjection.push({ "buffers": ["No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
                            } else {
                               empProjection.push({ "buffers": bufferArr });
                            }
-                        })
-                        .catch((getBufferErr) => { reject(getBufferErr); });
-                  })
-                  .then(() => {
-                     revObj.computeRevenue(empProjection, revenueYear, funcName)
-                        .then((revenueArr) => {
+                           revObj.computeRevenue(empProjection, revenueYear, funcName).then((revenueArr) => {
                               empProjection.push({ "revenue": revenueArr });
                               resolve(empProjection);
-                        })
-                        .catch((computeRevenueErr) => { reject(computeRevenueErr); });
-                  })
-                  .catch((getYearlySelfLeavesErr) => { reject(getYearlySelfLeavesErr) });
+                           }).catch((computeRevenueErr) => { reject(computeRevenueErr); });
+                        }).catch((getBufferErr) => { reject(getBufferErr); });
+                     }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
+                  }).catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
+               }).catch((getYearlySelfLeavesErr) => { reject(getYearlySelfLeavesErr); });
             } else if (empProjection.length === 0) {
                reject(funcName + ": No records found for object " + empRecId)
             } else if (empProjection.length > 1) {

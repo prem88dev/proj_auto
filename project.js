@@ -143,8 +143,9 @@ function getAllProjectRevenue(revenueYear, callerName) {
          Promise.all(allProjRevArr).then((allProjRev) => {
             allProjRev.forEach((project) => {
                let projId = project[0][0].esaId;
+               let currency = project[0][0].currency;
                let projRevArr = project[project.length - 1].projectRevenue;
-               dashboard.push({ "esaId": projId, "revenue": projRevArr });
+               dashboard.push({ "esaId": projId, "currency": currency, "revenue": projRevArr });
             });
          }).then(async () => {
             await calcAnnualRevenue(dashboard, revenueYear).then((revenueGrandTotal) => {

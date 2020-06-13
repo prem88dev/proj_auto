@@ -1,0 +1,24 @@
+[
+	{
+		"contractGroup": "CSCM",
+		"description": "Mooresville contract projects",
+		"currency": "USD",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+   },
+   {
+		"contractGroup": "CSCB",
+		"description": "Lowe's India contract projects",
+		"currency": "INR",
+		"editLock": 0,
+		"lockedBy": "",
+		"addStamp": "",
+		"addId": "",
+		"updStamp": "",
+		"updId": ""
+   }
+]

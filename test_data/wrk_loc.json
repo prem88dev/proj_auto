@@ -2,7 +2,7 @@
 	{
 		"cityCode": "MRVL",
 		"cityName": "Mooresville",
-		"siteInd": "ON",
+		"siteInd": "Onsite",
 		"editLock": 0,
 		"lockedBy": "",
 		"addStamp": "",
@@ -13,7 +13,7 @@
 	{
 		"cityCode": "BLR",
 		"cityName": "Bangalore",
-		"siteInd": "OFF",
+		"siteInd": "Offshore",
 		"editLock": 0,
 		"lockedBy": "",
 		"addStamp": "",
@@ -24,7 +24,7 @@
 	{
 		"cityCode": "CBE",
 		"cityName": "Coimbatore",
-		"siteInd": "OFF",
+		"siteInd": "Offshore",
 		"editLock": 0,
 		"lockedBy": "",
 		"addStamp": "",
@@ -35,7 +35,7 @@
 	{
 		"cityCode": "CHN",
 		"cityName": "Chennai",
-		"siteInd": "OFF",
+		"siteInd": "Offshore",
 		"editLock": 0,
 		"lockedBy": "",
 		"addStamp": "",
@@ -46,7 +46,7 @@
 	{
 		"cityCode": "HYD",
 		"cityName": "Hyderabad",
-		"siteInd": "OFF",
+		"siteInd": "Offshore",
 		"editLock": 0,
 		"lockedBy": "",
 		"addStamp": "",
@@ -57,7 +57,7 @@
 	{
 		"cityCode": "KLK",
 		"cityName": "Calcutta",
-		"siteInd": "OFF",
+		"siteInd": "Offshore",
 		"editLock": 0,
 		"lockedBy": "",
 		"addStamp": "",
@@ -68,7 +68,7 @@
 	{
 		"cityCode": "KOC",
 		"cityName": "Cochin",
-		"siteInd": "OFF",
+		"siteInd": "Offshore",
 		"editLock": 0,
 		"lockedBy": "",
 		"addStamp": "",
@@ -79,7 +79,7 @@
 	{
 		"cityCode": "CSCB",
 		"cityName": "Client location - Bangalore",
-		"siteInd": "OFF",
+		"siteInd": "Offshore",
 		"addStamp": "",
 		"addId": "",
 		"updStamp": "",

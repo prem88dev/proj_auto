@@ -80,28 +80,34 @@ function calcProjectRevenue(allEmpRevArr, projectRevenue, empDataIdx, callerName
 function getProjectRevenue(esaId, revenueYear, callerName) {
    let funcName = getProjectRevenue.name;
    return new Promise((resolve, reject) => {
-      let empRevArr = [];
-      empObj.listAssociates(esaId).then((empInProj) => {
-         empInProj.forEach((employee) => {
-            let empRecId = employee._id.toString();
-            empRevArr.push(empObj.getProjection(empRecId, revenueYear, funcName));
-         });
-      }).then(() => {
-         Promise.all(empRevArr).then((allEmpRevArr) => {
-            calcProjectRevenue(allEmpRevArr, "", 0, funcName).then((projectRevenue) => {
-               let prjRevArr = [];
-               if (projectRevenue.length > 0) {
-                  projectRevenue.forEach((prjDtl) => {
-                     prjRevArr.push({ "revenueMonth": prjDtl.revenueMonth, "revenueAmount": prjDtl.revenueAmount, "cmiRevenueAmount": prjDtl.cmiRevenueAmount });
-                  });
-                  allEmpRevArr.push({ "projectRevenue": prjRevArr });
-               } else {
-                  allEmpRevArr.push({ "projectRevenue": projectRevenue });
-               }
-               resolve(allEmpRevArr);
+      if (esaId === undefined || esaId === "") {
+         reject(funcName + ": Project ID is not provided");
+      } else if (revenueYear === undefined || revenueYear === "" || revenueYear.length !== 4) {
+         reject(funcName + ": Revenue year is not provided");
+      } else {
+         let empRevArr = [];
+         empObj.listAssociates(esaId).then((empInProj) => {
+            empInProj.forEach((employee) => {
+               let empRecId = employee._id.toString();
+               empRevArr.push(empObj.getProjection(empRecId, revenueYear, funcName));
+            });
+         }).then(() => {
+            Promise.all(empRevArr).then((allEmpRevArr) => {
+               calcProjectRevenue(allEmpRevArr, "", 0, funcName).then((projectRevenue) => {
+                  let prjRevArr = [];
+                  if (projectRevenue.length > 0) {
+                     projectRevenue.forEach((prjDtl) => {
+                        prjRevArr.push({ "revenueMonth": prjDtl.revenueMonth, "revenueAmount": prjDtl.revenueAmount, "cmiRevenueAmount": prjDtl.cmiRevenueAmount });
+                     });
+                     allEmpRevArr.push({ "projectRevenue": prjRevArr });
+                  } else {
+                     allEmpRevArr.push({ "projectRevenue": projectRevenue });
+                  }
+                  resolve(allEmpRevArr);
+               });
             });
          });
-      });
+      }
    });
 }
 

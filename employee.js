@@ -473,7 +473,7 @@ function getBuffer(esaId, esaSubType, ctsEmpId, revenueYear, callerName) {
 function getProjection(empRecId, revenueYear, callerName) {
    let funcName = getProjection.name;
    return new Promise((resolve, reject) => {
-      if (revenueYear === undefined || revenueYear === "") {
+      if (revenueYear === undefined || revenueYear === "" || revenueYear.length !== 4) {
          reject(funcName + ": Revenue year is not provided");
       } else if (empRecId === undefined || empRecId === "") {
          reject(funcName + ": Record id is not provided");

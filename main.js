@@ -7,6 +7,7 @@ const libApp = express();
 const port = 5454;
 let bp = require('body-parser');
 let cors = require('cors');
+const { rejects } = require("assert");
 
 libApp.use(bp.urlencoded({ extended: true }));
 libApp.use(bp.json());
@@ -65,7 +66,7 @@ libApp.get("/employeeDetail", (req, res) => {
         res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
-        res.json(errobj);
+        return res.json(errobj);
     });
 });
 

@@ -86,26 +86,31 @@ function getProjectRevenue(esaId, revenueYear, callerName) {
          reject(funcName + ": Revenue year is not provided");
       } else {
          let empRevArr = [];
-         empObj.listAssociates(esaId).then((empInProj) => {
-            empInProj.forEach((employee) => {
-               let empRecId = employee._id.toString();
-               empRevArr.push(empObj.getProjection(empRecId, revenueYear, funcName));
-            });
-         }).then(() => {
-            Promise.all(empRevArr).then((allEmpRevArr) => {
-               calcProjectRevenue(allEmpRevArr, "", 0, funcName).then((projectRevenue) => {
-                  let prjRevArr = [];
-                  if (projectRevenue.length > 0) {
-                     projectRevenue.forEach((prjDtl) => {
-                        prjRevArr.push({ "revenueMonth": prjDtl.revenueMonth, "revenueAmount": prjDtl.revenueAmount, "cmiRevenueAmount": prjDtl.cmiRevenueAmount });
-                     });
-                     allEmpRevArr.push({ "projectRevenue": prjRevArr });
-                  } else {
-                     allEmpRevArr.push({ "projectRevenue": projectRevenue });
-                  }
-                  resolve(allEmpRevArr);
+         empObj.listAssociates(esaId).then(async (empInProj) => {
+            await empInProj.forEach((employee) => {
+               let employeefilter = revenueYear + "-" + employee._id.toString();
+               empRevArr.push(empObj.getProjection(employeefilter, funcName)
+                  .catch((getProjectionErr) => { reject(getProjectionErr) }));
+            })
+
+            if (empRevArr.length >= 1) {
+               Promise.all(empRevArr).then((allEmpRevArr) => {
+                  calcProjectRevenue(allEmpRevArr, "", 0, funcName).then((projectRevenue) => {
+                     let prjRevArr = [];
+                     if (projectRevenue.length > 0) {
+                        projectRevenue.forEach((prjDtl) => {
+                           prjRevArr.push({ "revenueMonth": prjDtl.revenueMonth, "revenueAmount": prjDtl.revenueAmount, "cmiRevenueAmount": prjDtl.cmiRevenueAmount });
+                        });
+                        allEmpRevArr.push({ "projectRevenue": prjRevArr });
+                     } else {
+                        allEmpRevArr.push({ "projectRevenue": projectRevenue });
+                     }
+                     resolve(allEmpRevArr);
+                  });
                });
-            });
+            } else {
+               reject(funcName + ": No detail found !");
+            }
          });
       }
    });

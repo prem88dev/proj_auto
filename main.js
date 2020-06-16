@@ -27,7 +27,11 @@ libApp.get("/projectList", (_req, res) => {
 /* list employees in project */
 libApp.get("/workforce", (req, res) => {
     var esaId = req.query.esaId;
-    empObj.listAssociates(esaId, "main").then((allEmpInProj) => {
+    var esaSubType = "";
+    if (req.query.esaSubType !== undefined && req.query.esaSubType !== null) {
+        esaSubType = req.query.esaSubType;
+    }
+    empObj.listAssociates(esaId, esaSubType, "main").then((allEmpInProj) => {
         res.json(allEmpInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -59,10 +63,9 @@ libApp.get("/dashboard", (req, res) => {
 });
 
 /* get projection of one employee */
-libApp.get("/employeeDetail", (req, res) => {
-    let empRecId = req.body.empRecId;
-    let revenueYear = req.body.revenueYear;
-    empObj.getProjection(empRecId, revenueYear, "main").then((empDtl) => {
+libApp.get("/employeeRevenue", (req, res) => {
+    let filter = req.query.filter;
+    empObj.getProjection(filter, "main").then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

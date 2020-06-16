@@ -202,10 +202,6 @@ function calcRevenueHour(empProjection, startDate, stopDate, revenueHourArr, cal
          calcStartDate.setDate(calcStartDate.getDate() + 1);
          tmpHourArr = { "revenueHour": revenueHour, "cmiRevenueHour": cmiRevenueHour, "nextStartDate": calcStartDate };
 
-         /* if (calcStartDate.getMonth() === 0 || (calcStartDate.getMonth() === 1 && calcStartDate.getDate() === 1)) {
-            console.log({ "revenueHour": revenueHour, "cmiRevenueHour": cmiRevenueHour, "nextStartDate": dateFormat(calcStartDate, "d-mmm-yyyy", false) });
-         } */
-
          if (calcStartDate.getTime() > calcStopDate.getTime()) {
             return resolve(tmpHourArr);
          } else {

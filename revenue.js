@@ -266,7 +266,7 @@ function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
          let intBillRatePerHr = parseInt(billRatePerHr, 10);
          let revenueAmount = intRevenueHour * intBillRatePerHr;
          let cmiRevenueAmount = intCmiRevenueHour * intBillRatePerHr;
-         if (calcStartDate.getTime() >= sowStart.getTime() && calcStopDate.getTime() <= sowEnd.getTime()) {
+         if (calcStartDate.getTime() >= sowStart.getTime() && calcStopDate.getTime() <= effStopDate.getTime()) {
             resolve({ "revenueMonth": revenueMonth, "revenueHour": intRevenueHour, "revenueAmount": revenueAmount, "cmiRevenueHour": intCmiRevenueHour, "cmiRevenueAmount": cmiRevenueAmount });
          } else { /* we aren't within SOW timeline */
             resolve({ "revenueMonth": revenueMonth, "revenueHour": 0, "revenueAmount": 0, "cmiRevenueHour": intCmiRevenueHour, "cmiRevenueAmount": cmiRevenueAmount });

@@ -26,12 +26,9 @@ libApp.get("/projectList", (_req, res) => {
 
 /* list employees in project */
 libApp.get("/workforce", (req, res) => {
-    var esaId = req.query.esaId;
-    var esaSubType = "";
-    if (req.query.esaSubType !== undefined && req.query.esaSubType !== null) {
-        esaSubType = req.query.esaSubType;
-    }
-    empObj.listAssociates(esaId, esaSubType, "main").then((allEmpInProj) => {
+    let esaId = req.query.esaId;
+    let revenueYear = req.query.revenueYear;
+    empObj.listAssociates(esaId, revenueYear, "main").then((allEmpInProj) => {
         res.json(allEmpInProj);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
@@ -41,8 +38,8 @@ libApp.get("/workforce", (req, res) => {
 
 /* get one project revenue */
 libApp.get("/projectRevenue", (req, res) => {
-    var esaId = req.query.esaId;
-    var revenueYear = req.query.revenueYear;
+    let esaId = req.query.esaId;
+    let revenueYear = req.query.revenueYear;
     projObj.getProjectRevenue(esaId, revenueYear, "main").then((projectRevenue) => {
         res.json(projectRevenue);
     }).catch((err) => {
@@ -53,7 +50,7 @@ libApp.get("/projectRevenue", (req, res) => {
 
 /* get all project revenue */
 libApp.get("/dashboard", (req, res) => {
-    var revenueYear = req.query.revenueYear;
+    let revenueYear = req.query.revenueYear;
     projObj.getAllProjectRevenue(revenueYear, "main").then((projectRevenue) => {
         res.json(projectRevenue);
     }).catch((err) => {
@@ -64,8 +61,9 @@ libApp.get("/dashboard", (req, res) => {
 
 /* get projection of one employee */
 libApp.get("/employeeRevenue", (req, res) => {
-    let filter = req.query.filter;
-    empObj.getProjection(filter, "main").then((empDtl) => {
+    let revenueYear = req.query.revenueYear;
+    let employeeFilter = req.query.employeeFilter;
+    empObj.getProjection(revenueYear, employeeFilter, "main").then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }

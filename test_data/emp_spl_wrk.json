@@ -1,8 +1,6 @@
 [
    {
-      "esaId": 1000043321,
-      "esaSubType": 0,
-      "ctsEmpId": 703563,
+      "employeeLinker": "1000043321-0-849997-8-9500",
       "startDate": "01122020",
       "stopDate": "01122020",
       "workHour": 8,
@@ -15,9 +13,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000101627,
-      "esaSubType": 0,
-      "ctsEmpId": 126785,
+      "employeeLinker": "1000101627-0-126785-9-9003",
       "startDate": "01012020",
       "stopDate": "01012020",
       "workHour": 9,
@@ -30,9 +26,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "01022020",
       "stopDate": "01022020",
       "workHour": 8,
@@ -45,9 +39,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "01042020",
       "stopDate": "01042020",
       "workHour": 8,
@@ -60,9 +52,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "09012020",
       "stopDate": "09012020",
       "workHour": 4,
@@ -75,9 +65,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "19012020",
       "stopDate": "19012020",
       "workHour": 4,
@@ -90,9 +78,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "22012020",
       "stopDate": "22012020",
       "workHour": 8,
@@ -105,9 +91,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "20012020",
       "stopDate": "20012020",
       "workHour": 4,
@@ -120,9 +104,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "25012020",
       "stopDate": "25012020",
       "workHour": 8,
@@ -135,9 +117,7 @@
       "updId": ""
    },
    {
-      "esaId": 1000165319,
-      "esaSubType": 0,
-      "ctsEmpId": 175984,
+      "employeeLinker": "1000165319-0-175984-8-9003",
       "startDate": "30012020",
       "stopDate": "30012020",
       "workHour": 4,

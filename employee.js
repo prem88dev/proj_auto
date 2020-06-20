@@ -12,139 +12,66 @@ const esaProjColl = "esa_proj"
 const mSecInDay = 86400000;
 
 
-function computeBufferDays(bufferArr) {
-   let bufferDays = 0;
-   return new Promise(async (resolve, _reject) => {
-      await bufferArr.forEach((buffer) => {
-         bufferDays += parseInt(buffer.days, 10);
-      });
-      resolve(bufferDays);
-   });
-}
-
-
 /*
    listAssociates: to get list of employees in a project
 
    params:
       esaId - ESA project id for which employees are to be listed
+      revenueYear - Year in which the employee's SO is active
    
    returns array of employee with their first, middle and last names
 */
-function listAssociates(esaId, esaSubType, callerName) {
+function listAssociates(esaId, revenueYear, callerName) {
    let funcName = listAssociates.name;
    return new Promise((resolve, reject) => {
       if (esaId === undefined || esaId === "") {
          reject(funcName + ": ESA id is not provided");
-      } else if (esaSubType !== undefined && esaSubType !== "") {
-         let iEsaId = parseInt(esaId, 10);
-         let iEsaSubType = parseInt(esaSubType, 10);
-         dbObj.getDb().collection(empProjColl).aggregate([
-            {
-               $match: {
-                  "esaId": iEsaId,
-                  "esaSubType": iEsaSubType
-               }
-            },
-            {
-               $project: {
-                  "_id": {
-                     $concat: [
-                        { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                        { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
-                     ]
-                  },
-                  "empFname": "$empFname",
-                  "empMname": "$empMname",
-                  "empLname": "$empLname"
-               }
-            }
-         ]).toArray(function (err, allProj) {
-            if (err) {
-               reject("DB error in " + funcName + ": " + err);
-            } else {
-               resolve(allProj);
-            }
-         });
-      } else {
-         let iEsaId = parseInt(esaId, 10);
-         dbObj.getDb().collection(empProjColl).aggregate([
-            {
-               $match: {
-                  "esaId": iEsaId
-               }
-            },
-            {
-               $project: {
-                  "_id": {
-                     $concat: [
-                        { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                        { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
-                     ]
-                  },
-                  "empFname": "$empFname",
-                  "empMname": "$empMname",
-                  "empLname": "$empLname"
-               }
-            }
-         ]).toArray(function (err, allProj) {
-            if (err) {
-               reject("DB error in " + funcName + ": " + err);
-            } else {
-               resolve(allProj);
-            }
-         });
-      }
-   });
-}
-
-
-function getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, revenueYear) {
-   let funcName = getYearlySelfLeaves.name;
-   return new Promise((resolve, reject) => {
-      if (esaId === undefined || esaId === "") {
-         reject(funcName + ": ESA ID is not provided");
-      } else if (esaSubType === undefined || esaSubType === "") {
-         reject(funcName + ": ESA sub type is not provided");
-      } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(funcName + ": Employee ID is not provided");
-      } else if (revenueYear === undefined || revenueYear === "") {
+      } else if (revenueYear === undefined && revenueYear === "") {
          reject(funcName + ": Revenue year is not provided");
       } else {
          let iEsaId = parseInt(esaId, 10);
-         let iEsaSubType = parseInt(esaSubType, 10);
-         let iCtsEmpId = parseInt(ctsEmpId, 10);
-         let calcYear = parseInt(revenueYear, 10);
-         let revenueStart = new Date(calcYear, 0, 2);
+         let iRevenueYear = parseInt(revenueYear, 10);
+         let revenueStart = new Date(iRevenueYear, 0, 2);
          revenueStart.setUTCHours(0, 0, 0, 0);
-         let revenueStop = new Date(calcYear, 12, 1);
+         let revenueStop = new Date(iRevenueYear, 12, 1);
          revenueStop.setUTCHours(0, 0, 0, 0);
-         dbObj.getDb().collection(empLeaveColl).aggregate([
+         dbObj.getDb().collection(empProjColl).aggregate([
             {
                $project: {
-                  "_id": "$_id",
+                  "empFname": "$empFname",
+                  "empMname": "$empMname",
+                  "empLname": "$empLname",
                   "esaId": "$esaId",
                   "esaSubType": "$esaSubType",
                   "ctsEmpId": "$ctsEmpId",
-                  "startDate": "$startDate",
-                  "stopDate": "$stopDate",
-                  "halfDay": "$halfDay",
-                  "leaveHour": "$leaveHour",
-                  "reason": "$reason",
-                  "leaveStart": {
+                  "wrkHrPerDay": "$wrkHrPerDay",
+                  "billRatePerHr": "$billRatePerHr",
+                  "sowBegin": {
                      $dateFromParts: {
-                        year: { $toInt: { $substr: ["$startDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$startDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$startDate", 0, 2] } },
+                        year: { $toInt: { $substr: ["$sowStart", 4, -1] } },
+                        month: { $toInt: { $substr: ["$sowStart", 2, 2] } },
+                        day: { $toInt: { $substr: ["$sowStart", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   },
-                  "leaveStop": {
+                  "sowEnd": {
                      $dateFromParts: {
-                        year: { $toInt: { $substr: ["$stopDate", 4, -1] } },
-                        month: { $toInt: { $substr: ["$stopDate", 2, 2] } },
-                        day: { $toInt: { $substr: ["$stopDate", 0, 2] } },
+                        year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
+                        month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
+                        day: { $toInt: { $substr: ["$sowStop", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                     },
+                  },
+                  "foreseenSowEnd": {
+                     $cond: {
+                        if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                           $dateFromParts: {
+                              year: { $toInt: { $substr: ["$foreseenSowStop", 4, -1] } },
+                              month: { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } },
+                              day: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } },
+                              hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                           }
+                        }, else: "$foreseenSowStop"
                      }
                   }
                }
@@ -152,36 +79,81 @@ function getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, revenueYear) {
             {
                $match: {
                   "esaId": iEsaId,
-                  "esaSubType": iEsaSubType,
-                  "ctsEmpId": iCtsEmpId,
                   $or: [
                      {
                         $and: [
-                           { "leaveStart": { "$lte": revenueStart } },
-                           { "leaveStop": { "$gte": revenueStop } }
+                           { "sowBegin": { "$lte": revenueStart } },
+                           {
+                              $or: [
+                                 { "sowEnd": { "$gte": revenueStop } },
+                                 { "foreseenSowEnd": { "$gte": revenueStop } }
+                              ]
+                           }
                         ]
                      },
                      {
                         $and: [
-                           { "leaveStart": { "$lte": revenueStart } },
-                           { "leaveStop": { "$gte": revenueStart } },
-                           { "leaveStop": { "$lte": revenueStop } }
+                           { "sowBegin": { "$lte": revenueStart } },
+                           {
+                              $or: [
+                                 {
+                                    $and: [
+                                       { "sowEnd": { "$gte": revenueStart } },
+                                       { "sowEnd": { "$lte": revenueStop } }
+                                    ]
+                                 },
+                                 {
+                                    $and: [
+                                       { "foreseenSowEnd": { "$gte": revenueStart } },
+                                       { "foreseenSowEnd": { "$lte": revenueStop } }
+                                    ]
+                                 }
+                              ]
+                           }
                         ]
                      },
                      {
                         $and: [
-                           { "leaveStart": { "$gte": revenueStart } },
-                           { "leaveStart": { "$lte": revenueStop } },
-                           { "leaveStop": { "$gte": revenueStart } },
-                           { "leaveStop": { "$lte": revenueStop } }
+                           { "sowBegin": { "$gte": revenueStart } },
+                           { "sowBegin": { "$lte": revenueStop } },
+                           {
+                              $or: [
+                                 {
+                                    $and: [
+                                       { "sowEnd": { "$gte": revenueStart } },
+                                       { "sowEnd": { "$lte": revenueStop } }
+                                    ]
+                                 },
+                                 {
+                                    $and: [
+                                       { "foreseenSowEnd": { "$gte": revenueStart } },
+                                       { "foreseenSowEnd": { "$lte": revenueStop } }
+                                    ]
+                                 }
+                              ]
+                           }
                         ]
                      },
                      {
                         $and: [
-                           { "leaveStart": { "$gte": revenueStart } },
-                           { "leaveStart": { "$lte": revenueStop } },
-                           { "leaveStop": { "$gte": revenueStart } },
-                           { "leaveStop": { "$gte": revenueStop } }
+                           { "sowBegin": { "$gte": revenueStart } },
+                           { "sowBegin": { "$lte": revenueStop } },
+                           {
+                              $or: [
+                                 {
+                                    $and: [
+                                       { "sowEnd": { "$gte": revenueStart } },
+                                       { "sowEnd": { "$gte": revenueStop } }
+                                    ]
+                                 },
+                                 {
+                                    $and: [
+                                       { "sowEnd": { "$gte": revenueStart } },
+                                       { "sowEnd": { "$gte": revenueStop } }
+                                    ]
+                                 }
+                              ]
+                           }
                         ]
                      }
                   ]
@@ -189,67 +161,22 @@ function getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, revenueYear) {
             },
             {
                $project: {
-                  "_id": "$_id",
-                  "startDate": "$leaveStart",
-                  "stopDate": "$leaveStop",
-                  "days": {
-                     $cond: {
-                        if: { $eq: ["$halfDay", "Y"] }, then: {
-                           $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
-                        },
-                        else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
-                     }
+                  "_id": {
+                     $concat: [
+                        { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
+                        { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
+                     ]
                   },
-                  "halfDay": "$halfDay",
-                  "leaveHour": "$leaveHour",
-                  "reason": "$reason"
-               }
-            },
-            {
-               $addFields: {
-                  startDate: {
-                     $let: {
-                        vars: {
-                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                        },
-                        in: {
-                           $concat: [
-                              { $toString: { $dayOfMonth: "$startDate" } }, "-",
-                              { $arrayElemAt: ["$$monthsInString", { $month: "$startDate" }] }, "-",
-                              { $toString: { $year: "$startDate" } }
-                           ]
-                        }
-                     }
-                  },
-                  stopDate: {
-                     $let: {
-                        vars: {
-                           monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                        },
-                        in: {
-                           $concat: [
-                              { $toString: { $dayOfMonth: "$stopDate" } }, "-",
-                              { $arrayElemAt: ["$$monthsInString", { $month: "$stopDate" }] }, "-",
-                              { $toString: { $year: "$stopDate" } }
-                           ]
-                        }
-                     }
-                  }
+                  "empFname": "$empFname",
+                  "empMname": "$empMname",
+                  "empLname": "$empLname"
                }
             }
-         ]).toArray((err, leaveArr) => {
+         ]).toArray(function (err, allProj) {
             if (err) {
                reject("DB error in " + funcName + ": " + err);
-            } else if (leaveArr.length >= 1) {
-               commObj.countAllDays(leaveArr, funcName).then((allDaysInLeave) => {
-                  commObj.countWeekdays(leaveArr, funcName).then((workDaysInLeave) => {
-                     leaveArr.push({ "totalDays": allDaysInLeave, "workDays": workDaysInLeave });
-                     resolve(leaveArr);
-                  });
-               });
-            }
-            else {
-               resolve(leaveArr);
+            } else {
+               resolve(allProj);
             }
          });
       }
@@ -257,34 +184,25 @@ function getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, revenueYear) {
 }
 
 
-function getSelfLeaveDates(esaId, esaSubType, ctsEmpId, selfLeaveStart, selfLeaveStop, callerName) {
-   let funcName = getSelfLeaveDates.name;
+function getEmployeeLeaves(employeeFilter, leaveStartDate, leaveStopDate, callerName) {
+   let funcName = getEmployeeLeaves.name;
    return new Promise((resolve, reject) => {
-      if (esaId === undefined || esaId === "") {
-         reject(funcName + ": ESA ID is not provided");
-      } else if (esaSubType === undefined || esaSubType === "") {
-         reject(funcName + ": ESA sub type is not provided");
-      } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(funcName + ": Employee ID is not provided");
-      } else if (selfLeaveStart === undefined || selfLeaveStart === "") {
+      if (employeeFilter === undefined || employeeFilter === "") {
+         reject(funcName + ": Employee filter is not provided");
+      } else if (leaveStartDate === undefined || leaveStartDate === "") {
          reject(funcName + ": Personal leave start date is not provided");
-      } else if (selfLeaveStop === undefined || selfLeaveStop === "") {
+      } else if (leaveStopDate === undefined || leaveStopDate === "") {
          reject(funcName + ": Personal leave stop date is not provided");
       } else {
-         let iEsaId = parseInt(esaId, 10);
-         let iEsaSubType = parseInt(esaSubType, 10);
-         let iCtsEmpId = parseInt(ctsEmpId, 10);
-         let refStartDate = new Date(selfLeaveStart);
+         let refStartDate = new Date(leaveStartDate);
          refStartDate.setUTCHours(0, 0, 0, 0);
-         let refStopDate = new Date(selfLeaveStop);
+         let refStopDate = new Date(leaveStopDate);
          refStopDate.setUTCHours(0, 0, 0, 0);
+
          dbObj.getDb().collection(empLeaveColl).aggregate([
             {
                $project: {
-                  "_id": "$_id",
-                  "esaId": "$esaId",
-                  "esaSubType": "$esaSubType",
-                  "ctsEmpId": "$ctsEmpId",
+                  "employeeLinker": "$employeeLinker",
                   "startDate": "$startDate",
                   "stopDate": "$stopDate",
                   "halfDay": "$halfDay",
@@ -309,9 +227,7 @@ function getSelfLeaveDates(esaId, esaSubType, ctsEmpId, selfLeaveStart, selfLeav
             },
             {
                $match: {
-                  "esaId": iEsaId,
-                  "esaSubType": iEsaSubType,
-                  "ctsEmpId": iCtsEmpId,
+                  "employeeLinker": employeeFilter,
                   $or: [
                      {
                         $and: [
@@ -347,7 +263,7 @@ function getSelfLeaveDates(esaId, esaSubType, ctsEmpId, selfLeaveStart, selfLeav
             },
             {
                $project: {
-                  "_id": "$_id",
+                  "_id": "$employeeLinker",
                   "startDate": "$leaveStart",
                   "stopDate": "$leaveStop",
                   "days": {
@@ -355,10 +271,13 @@ function getSelfLeaveDates(esaId, esaSubType, ctsEmpId, selfLeaveStart, selfLeav
                         if: { $eq: ["$halfDay", "Y"] }, then: {
                            $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, (mSecInDay * 2)]
                         },
-                        else: { $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay] }
+                        else: {
+                           $divide: [{ $add: [{ $subtract: ["$leaveStop", "$leaveStart"] }, mSecInDay] }, mSecInDay]
+                        }
                      }
                   },
                   "halfDay": "$halfDay",
+                  "leaveHour": "$leaveHour",
                   "reason": "$reason"
                }
             },
@@ -417,33 +336,25 @@ function getSelfLeaveDates(esaId, esaSubType, ctsEmpId, selfLeaveStart, selfLeav
          ctsEmpId - employee id
          revenueYear - year for which leaves are required
 */
-function getBuffer(esaId, esaSubType, ctsEmpId, revenueYear, callerName) {
+function getBuffer(employeeFilter, bufferStartDate, bufferStopDate, callerName) {
    let funcName = getBuffer.name;
    return new Promise((resolve, reject) => {
-      if (esaId === undefined || esaId === "") {
-         reject(funcName + ": ESA ID is not provided");
-      } else if (esaSubType === undefined || esaSubType === "") {
-         reject(funcName + ": ESA sub type is not provided");
-      } else if (ctsEmpId === undefined || ctsEmpId === "") {
-         reject(funcName + ": Employee ID is not provided");
-      } else if (revenueYear === undefined || revenueYear === "") {
-         reject(funcName + ": Revenue year is not provided");
+      if (employeeFilter === undefined || employeeFilter === "") {
+         reject(funcName + ": Employee filter is not provided");
+      } else if (bufferStartDate === undefined || bufferStartDate === "") {
+         reject(funcName + ": Buffer start date is not provided");
+      } else if (bufferStopDate === undefined || bufferStopDate === "") {
+         reject(funcName + ": Buffer stop date is not provided");
       } else {
-         let iEsaId = parseInt(esaId, 10);
-         let iEsaSubType = parseInt(esaSubType, 10);
-         let iCtsEmpId = parseInt(ctsEmpId, 10);
-         let calcYear = parseInt(revenueYear, 10);
-         let revenueStart = new Date(calcYear, 0, 2);
-         revenueStart.setUTCHours(0, 0, 0, 0);
-         let revenueStop = new Date(calcYear, 12, 1);
-         revenueStop.setUTCHours(0, 0, 0, 0);
+         let refStartDate = new Date(bufferStartDate);
+         refStartDate.setUTCHours(0, 0, 0, 0);
+         let refStopDate = new Date(bufferStopDate);
+         refStopDate.setUTCHours(0, 0, 0, 0);
+
          dbObj.getDb().collection(empBuffer).aggregate([
             {
                $project: {
-                  "_id": "$_id",
-                  "esaId": "$esaId",
-                  "esaSubType": "$esaSubType",
-                  "ctsEmpId": "$ctsEmpId",
+                  "employeeLinker": "$employeeLinker",
                   "month": "$month",
                   "hours": "$hours",
                   "reason": "$reason",
@@ -458,18 +369,16 @@ function getBuffer(esaId, esaSubType, ctsEmpId, revenueYear, callerName) {
             },
             {
                $match: {
-                  "esaId": iEsaId,
-                  "esaSubType": iEsaSubType,
-                  "ctsEmpId": iCtsEmpId,
+                  "employeeLinker": employeeFilter,
                   $and: [
-                     { "bufferDate": { "$gte": revenueStart } },
-                     { "bufferDate": { "$lte": revenueStop } }
+                     { "bufferDate": { "$gte": refStartDate } },
+                     { "bufferDate": { "$lte": refStopDate } }
                   ]
                }
             },
             {
                $project: {
-                  "_id": "$_id",
+                  "_id": "$employeeLinker",
                   "month": "$month",
                   "hours": "$hours",
                   "reason": "$reason"
@@ -505,218 +414,204 @@ function getBuffer(esaId, esaSubType, ctsEmpId, revenueYear, callerName) {
 
 
 /* get projection data for specific employee in selected project */
-function getProjection(filter, callerName) {
+function getProjection(revenueYear, employeeFilter, callerName) {
    let funcName = getProjection.name;
    return new Promise((resolve, reject) => {
-      if (filter === undefined || filter === "") {
-         reject(funcName + ": Filter parameter is not provided");
+      if (revenueYear === undefined || revenueYear === "" || revenueYear.length < 4) {
+         reject(funcName + ": Revenue year not provided");
+      } else if (employeeFilter === undefined || employeeFilter === "") {
+         reject(funcName + ": Employee filter not provided");
       } else {
-         let iRevenueYear = 0;
-         let iEsaId  = 0;
-         let iEsaSubType = 0;
+         let iRevenueYear = parseInt(revenueYear, 10);
+         let revenueStart = new Date(iRevenueYear, 0, 2);
+         revenueStart.setUTCHours(0, 0, 0, 0);
+         let revenueStop = new Date(iRevenueYear, 12, 1);
+         revenueStop.setUTCHours(0, 0, 0, 0);
+         let iEsaId = 0;
+         let iEsaSubType = -1; /* sub-type of esa id has zero-based index */
          let iCtsEmpId = 0;
          let iWrkHrPerDay = 0;
          let iBillingRatePerHr = 0;
-         let splitMatchParam = filter.split("-");
-         if (splitMatchParam.length === 6) {
-            splitMatchParam.forEach((splitVal, idx) => {
+         let filterSplit = employeeFilter.split("-");
+         if (filterSplit.length === 5) {
+            filterSplit.forEach((splitVal, idx) => {
                if (idx === 0) {
-                  iRevenueYear = parseInt(splitVal, 10);
-               } else if (idx === 1) {
                   iEsaId = parseInt(splitVal, 10);
-               } else if (idx === 2) {
+               } else if (idx === 1) {
                   iEsaSubType = parseInt(splitVal, 10);
-               } else if (idx === 3) {
+               } else if (idx === 2) {
                   iCtsEmpId = parseInt(splitVal, 10);
-               } else if (idx === 4) {
+               } else if (idx === 3) {
                   iWrkHrPerDay = parseInt(splitVal, 10);
-               } else if (idx === 5) {
+               } else if (idx === 4) {
                   iBillingRatePerHr = parseInt(splitVal, 10);
                }
             });
 
-            let revenueStart = new Date(iRevenueYear, 0, 2);
-            revenueStart.setUTCHours(0, 0, 0, 0);
-            let revenueStop = new Date(iRevenueYear, 12, 1);
-            revenueStop.setUTCHours(0, 0, 0, 0);
-            dbObj.getDb().collection(empProjColl).aggregate([
-               {
-                  $lookup: {
-                     from: "esa_proj",
-                     let: {
-                        esaProjId: "$esaId",
-                        esaProjSubType: "$esaSubType"
-                     },
-                     pipeline: [{
-                        $match: {
-                           $expr: {
-                              $and: [
-                                 { $eq: ["$esaId", "$$esaProjId"] },
-                                 { $eq: ["$esaSubType", "$$esaProjSubType"] }
-                              ]
+            if (iEsaId === 0 || iEsaSubType === -1 || iCtsEmpId === 0 || iWrkHrPerDay === 0 || iBillingRatePerHr === 0) {
+               reject(funcName + ": Filter parameter is not proper");
+            } else {
+               dbObj.getDb().collection(empProjColl).aggregate([
+                  {
+                     $lookup: {
+                        from: "esa_proj",
+                        let: {
+                           esaProjId: "$esaId",
+                           esaProjSubType: "$esaSubType"
+                        },
+                        pipeline: [{
+                           $match: {
+                              $expr: {
+                                 $and: [
+                                    { $eq: ["$esaId", "$$esaProjId"] },
+                                    { $eq: ["$esaSubType", "$$esaProjSubType"] }
+                                 ]
+                              }
                            }
-                        }
-                     }],
-                     as: "esa_proj_match"
-                  }
-               },
-               {
-                  $unwind: "$esa_proj_match"
-               },
-               {
-                  $lookup: {
-                     from: "wrk_loc",
-                     localField: "cityCode",
-                     foreignField: "cityCode",
-                     as: "wrk_loc_match"
-                  }
-               },
-               {
-                  $unwind: "$wrk_loc_match"
-               },
-               {
-                  $match: {
-                     "esaId": iEsaId,
-                     "esaSubType": iEsaSubType,
-                     "ctsEmpId": iCtsEmpId,
-                     "wrkHrPerDay": iWrkHrPerDay,
-                     "billRatePerHr": iBillingRatePerHr
-                  }
-               },
-               {
-                  $project: {
-                     "_id": {
-                        $concat: [
-                           { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                           { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
-                        ]
-                     },
-                     "esaId": "$esaId",
-                     "esaSubType": "$esaSubType",
-                     "esaDesc": "$esa_proj_match.esaDesc",
-                     "projName": "$projName",
-                     "ctsEmpId": "$ctsEmpId",
-                     "empFname": "$empFname",
-                     "empMname": "$empMname",
-                     "empLname": "$empLname",
-                     "lowesUid": "$lowesUid",
-                     "deptName": "$deptName",
-                     "sowStart": "$sowStart",
-                     "sowStop": "$sowStop",
-                     "foreseenSowStop": "$foreseenSowStop",
-                     "cityCode": "$wrk_loc_match.cityCode",
-                     "cityName": "$wrk_loc_match.cityName",
-                     "siteInd": "$wrk_loc_match.siteInd",
-                     "wrkHrPerDay": "$wrkHrPerDay",
-                     "billRatePerHr": "$billRatePerHr",
-                     "currency": "$esa_proj_match.currency"
-                  }
-               },
-               {
-                  $addFields: {
-                     sowStart: {
-                        $cond: {
-                           if: { $ne: ["$sowStart", ""] }, then: {
-                              $let: {
-                                 vars: {
-                                    monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                                 },
-                                 in: {
-                                    $concat: [
-                                       { $toString: { $toInt: { $substr: ["$sowStart", 0, 2] } } }, "-",
-                                       { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStart", 2, 2] } }] }, "-",
-                                       { $substr: ["$sowStart", 4, -1] }
-                                    ]
+                        }],
+                        as: "esa_proj_match"
+                     }
+                  },
+                  {
+                     $unwind: "$esa_proj_match"
+                  },
+                  {
+                     $lookup: {
+                        from: "wrk_loc",
+                        localField: "cityCode",
+                        foreignField: "cityCode",
+                        as: "wrk_loc_match"
+                     }
+                  },
+                  {
+                     $unwind: "$wrk_loc_match"
+                  },
+                  {
+                     $match: {
+                        "esaId": iEsaId,
+                        "esaSubType": iEsaSubType,
+                        "ctsEmpId": iCtsEmpId,
+                        "wrkHrPerDay": iWrkHrPerDay,
+                        "billRatePerHr": iBillingRatePerHr
+                     }
+                  },
+                  {
+                     $project: {
+                        "_id": {
+                           $concat: [
+                              { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
+                              { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
+                           ]
+                        },
+                        "esaId": "$esaId",
+                        "esaSubType": "$esaSubType",
+                        "esaDesc": "$esa_proj_match.esaDesc",
+                        "projName": "$projName",
+                        "ctsEmpId": "$ctsEmpId",
+                        "empFname": "$empFname",
+                        "empMname": "$empMname",
+                        "empLname": "$empLname",
+                        "lowesUid": "$lowesUid",
+                        "deptName": "$deptName",
+                        "sowStart": "$sowStart",
+                        "sowStop": "$sowStop",
+                        "foreseenSowStop": "$foreseenSowStop",
+                        "cityCode": "$wrk_loc_match.cityCode",
+                        "cityName": "$wrk_loc_match.cityName",
+                        "siteInd": "$wrk_loc_match.siteInd",
+                        "wrkHrPerDay": "$wrkHrPerDay",
+                        "billRatePerHr": "$billRatePerHr",
+                        "currency": "$esa_proj_match.currency"
+                     }
+                  },
+                  {
+                     $addFields: {
+                        sowStart: {
+                           $cond: {
+                              if: { $ne: ["$sowStart", ""] }, then: {
+                                 $let: {
+                                    vars: {
+                                       monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                    },
+                                    in: {
+                                       $concat: [
+                                          { $toString: { $toInt: { $substr: ["$sowStart", 0, 2] } } }, "-",
+                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStart", 2, 2] } }] }, "-",
+                                          { $substr: ["$sowStart", 4, -1] }
+                                       ]
+                                    }
                                  }
-                              }
-                           }, else: "$sowStart"
-                        }
-                     },
-                     sowStop: {
-                        $cond: {
-                           if: { $ne: ["$sowStop", ""] }, then: {
-                              $let: {
-                                 vars: {
-                                    monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                                 },
-                                 in: {
-                                    $concat: [
-                                       { $toString: { $toInt: { $substr: ["$sowStop", 0, 2] } } }, "-",
-                                       { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStop", 2, 2] } }] }, "-",
-                                       { $substr: ["$sowStop", 4, -1] }
-                                    ]
+                              }, else: "$sowStart"
+                           }
+                        },
+                        sowStop: {
+                           $cond: {
+                              if: { $ne: ["$sowStop", ""] }, then: {
+                                 $let: {
+                                    vars: {
+                                       monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                    },
+                                    in: {
+                                       $concat: [
+                                          { $toString: { $toInt: { $substr: ["$sowStop", 0, 2] } } }, "-",
+                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStop", 2, 2] } }] }, "-",
+                                          { $substr: ["$sowStop", 4, -1] }
+                                       ]
+                                    }
                                  }
-                              }
-                           }, else: "$sowStop"
-                        }
-                     },
-                     foreseenSowStop: {
-                        $cond: {
-                           if: { $ne: ["$foreseenSowStop", ""] }, then: {
-                              $let: {
-                                 vars: {
-                                    monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                                 },
-                                 in: {
-                                    $concat: [
-                                       { $toString: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } } }, "-",
-                                       { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } }] }, "-",
-                                       { $substr: ["$foreseenSowStop", 4, -1] }
-                                    ]
+                              }, else: "$sowStop"
+                           }
+                        },
+                        foreseenSowStop: {
+                           $cond: {
+                              if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                                 $let: {
+                                    vars: {
+                                       monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                    },
+                                    in: {
+                                       $concat: [
+                                          { $toString: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } } }, "-",
+                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } }] }, "-",
+                                          { $substr: ["$foreseenSowStop", 4, -1] }
+                                       ]
+                                    }
                                  }
-                              }
-                           }, else: "$foreseenSowStop"
+                              }, else: "$foreseenSowStop"
+                           }
                         }
                      }
                   }
-               }
-            ]).toArray(async (err, empProjection) => {
-               if (err) {
-                  reject("DB error in " + funcName + ": " + err);
-               } else if (empProjection.length === 1) {
-                  let esaId = empProjection[0].esaId;
-                  let esaSubType = empProjection[0].esaSubType
-                  let ctsEmpId = empProjection[0].ctsEmpId;
-                  let cityCode = empProjection[0].cityCode;
+               ]).toArray(async (err, empProjection) => {
+                  if (err) {
+                     reject("DB error in " + funcName + ": " + err);
+                  } else if (empProjection.length === 1) {
+                     let employeeFilter = empProjection[0]._id;
+                     let cityCode = empProjection[0].cityCode;
 
-                  getYearlySelfLeaves(esaId, esaSubType, ctsEmpId, iRevenueYear, funcName).then((selfLeaveArr) => {
-                     if (selfLeaveArr.length === 0) {
-                        empProjection.push({ "leaves": ["No leaves between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-                     } else {
+                     getEmployeeLeaves(employeeFilter, revenueStart, revenueStop, funcName).then((selfLeaveArr) => {
                         empProjection.push({ "leaves": selfLeaveArr });
-                     }
-                     locObj.getYearlyLocationLeaves(cityCode, iRevenueYear, funcName).then((locHolArr) => {
-                        if (locHolArr.length === 0) {
-                           empProjection.push({ "publicHolidays": ["No location holidays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-                        } else {
+                        locObj.getPublicHolidays(cityCode, revenueStart, revenueStop, funcName).then((locHolArr) => {
                            empProjection.push({ "publicHolidays": locHolArr });
-                        }
-                        splWrkObj.getSplWrkDays(esaId, esaSubType, ctsEmpId, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
-                           if (splWrkArr.length === 0) {
-                              empProjection.push({ "specialWorkDays": ["No additional workdays between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-                           } else {
+                           splWrkObj.getSplWrkDays(employeeFilter, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
                               empProjection.push({ "specialWorkDays": splWrkArr });
-                           }
-                           getBuffer(esaId, esaSubType, ctsEmpId, iRevenueYear, funcName).then((bufferArr) => {
-                              if (bufferArr.length === 0) {
-                                 empProjection.push({ "buffers": ["No buffers between " + dateFormat(revenueStart, "d-mmm-yyyy") + " and " + dateFormat(revenueStop, "d-mmm-yyyy")] });
-                              } else {
+                              getBuffer(employeeFilter, revenueStart, revenueStop, funcName).then((bufferArr) => {
                                  empProjection.push({ "buffers": bufferArr });
-                              }
-                              revObj.computeRevenue(empProjection, iRevenueYear, funcName).then((revenueArr) => {
-                                 empProjection.push({ "revenue": revenueArr });
-                                 resolve(empProjection);
-                              }).catch((computeRevenueErr) => { reject(computeRevenueErr); });
-                           }).catch((getBufferErr) => { reject(getBufferErr); });
-                        }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
-                     }).catch((getYearlyLocationLeavesErr) => { reject(getYearlyLocationLeavesErr); });
-                  }).catch((getYearlySelfLeavesErr) => { reject(getYearlySelfLeavesErr); });
-               } else if (empProjection.length === 0) {
-                  reject(funcName + ": No records found for filter [" + filterParam + "]");
-               } else if (empProjection.length > 1) {
-                  reject(funcName + ": More than one record found for filter [" + filterParam + "]");
-               }
-            });
+                                 revObj.computeRevenue(empProjection, iRevenueYear, funcName).then((revenueArr) => {
+                                    empProjection.push({ "revenue": revenueArr });
+                                    resolve(empProjection);
+                                 }).catch((computeRevenueErr) => { reject(computeRevenueErr); });
+                              }).catch((getBufferErr) => { reject(getBufferErr); });
+                           }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
+                        }).catch((getPublicHolidaysErr) => { reject(getPublicHolidaysErr); });
+                     }).catch((getEmployeeLeavesErr) => { reject(getEmployeeLeavesErr); });
+                  } else if (empProjection.length === 0) {
+                     reject(funcName + ": No records found for filter [" + filterParam + "]");
+                  } else if (empProjection.length > 1) {
+                     reject(funcName + ": More than one record found for filter [" + filterParam + "]");
+                  }
+               });
+            }
          } else {
             reject(funcName + ": Expected filter parameter is not provided");
          }
@@ -729,8 +624,7 @@ function getProjection(filter, callerName) {
 
 module.exports = {
    listAssociates,
-   getYearlySelfLeaves,
-   getSelfLeaveDates,
+   getEmployeeLeaves,
    getBuffer,
    getProjection
 }

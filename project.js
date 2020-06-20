@@ -86,10 +86,10 @@ function getProjectRevenue(esaId, revenueYear, callerName) {
          reject(funcName + ": Revenue year is not provided");
       } else {
          let empRevArr = [];
-         empObj.listAssociates(esaId).then(async (empInProj) => {
+         empObj.listAssociates(esaId, revenueYear, funcName).then(async (empInProj) => {
             await empInProj.forEach((employee) => {
-               let employeefilter = revenueYear + "-" + employee._id.toString();
-               empRevArr.push(empObj.getProjection(employeefilter, funcName)
+               let employeefilter = employee._id.toString();
+               empRevArr.push(empObj.getProjection(revenueYear, employeefilter, funcName)
                   .catch((getProjectionErr) => { reject(getProjectionErr) }));
             })
 

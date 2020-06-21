@@ -60,7 +60,7 @@ function listAssociates(esaId, revenueYear, callerName) {
                         month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
                         day: { $toInt: { $substr: ["$sowStop", 0, 2] } },
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
-                     },
+                     }
                   },
                   "foreseenSowEnd": {
                      $cond: {
@@ -582,7 +582,7 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                         }
                      }
                   }
-               ]).toArray(async (err, empProjection) => {
+               ]).toArray((err, empProjection) => {
                   if (err) {
                      reject("DB error in " + funcName + ": " + err);
                   } else if (empProjection.length === 1) {
@@ -619,12 +619,93 @@ function getProjection(revenueYear, employeeFilter, callerName) {
    });
 }
 
-
+/* get min and max allocation year for manufacturing year drop down */
+function getMinMaxAllocationYear(esaId, caller) {
+   let funcName = getMinMaxAllocationYear.name;
+   return new Promise((resolve, reject) => {
+      if (esaId === undefined || esaId === "") {
+         reject(funcName + ": ESA ID not provided");
+      } else {
+         let iEsaId = parseInt(esaId, 10);
+         dbObj.getDb().collection(empProjColl).aggregate([
+            {
+               $match: {
+                  "esaId": iEsaId
+               }
+            },
+            {
+               $project: {
+                  "esaId": "$esaId",
+                  "sowBegin": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$sowStart", 4, -1] } },
+                        month: { $toInt: { $substr: ["$sowStart", 2, 2] } },
+                        day: { $toInt: { $substr: ["$sowStart", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                     }
+                  },
+                  "sowEnd": {
+                     $dateFromParts: {
+                        year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
+                        month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
+                        day: { $toInt: { $substr: ["$sowStop", 0, 2] } },
+                        hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                     }
+                  },
+                  "foreseenSowEnd": {
+                     $cond: {
+                        if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                           $dateFromParts: {
+                              year: { $toInt: { $substr: ["$foreseenSowStop", 4, -1] } },
+                              month: { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } },
+                              day: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } },
+                              hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                           }
+                        }, else: {
+                           $dateFromParts: {
+                              year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
+                              month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
+                              day: { $toInt: { $substr: ["$sowStop", 0, 2] } },
+                              hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                           }
+                        }
+                     }
+                  }
+               }
+            },
+            {
+               $group: {
+                  "_id": "$esaId",
+                  "minYear": { $min: { $year: "$sowBegin" } },
+                  "maxYear": {
+                     $max: {
+                        $cond: {
+                           if: { $gt: ["$foreseenSowStop", "$sowEnd"] }, then: {
+                              $year: "$foreseenSowStop"
+                           }, else: {
+                              $year: "$sowEnd"
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         ]).toArray((err, minMaxYear) => {
+            if (err) {
+               reject("DB error in " + funcName + ": " + err);
+            } else {
+               resolve(minMaxYear);
+            }
+         });
+      }
+   })
+}
 
 
 module.exports = {
    listAssociates,
    getEmployeeLeaves,
    getBuffer,
-   getProjection
+   getProjection,
+   getMinMaxAllocationYear
 }

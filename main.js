@@ -8,6 +8,7 @@ const port = 5454;
 let bp = require('body-parser');
 let cors = require('cors');
 const { rejects } = require("assert");
+const e = require("express");
 
 libApp.use(bp.urlencoded({ extended: true }));
 libApp.use(bp.json());
@@ -65,6 +66,17 @@ libApp.get("/employeeRevenue", (req, res) => {
     let employeeFilter = req.query.employeeFilter;
     empObj.getProjection(revenueYear, employeeFilter, "main").then((empDtl) => {
         res.json(empDtl);
+    }).catch((err) => {
+        errobj = { errcode: 500, error: err }
+        return res.json(errobj);
+    });
+});
+
+/* get projection of one employee */
+libApp.get("/minMaxAllocYear", (req, res) => {
+    let esaId = req.query.esaId;
+    empObj.getMinMaxAllocationYear(esaId, "main").then((minMaxYear) => {
+        res.json(minMaxYear);
     }).catch((err) => {
         errobj = { errcode: 500, error: err }
         return res.json(errobj);

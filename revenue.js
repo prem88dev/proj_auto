@@ -231,28 +231,29 @@ function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
       let sowEnd = new Date(dateTime.parse(empProjection[0].sowStop, "D-MMM-YYYY", true));
       sowEnd.setHours(0, 0, 0, 0);
 
-      let effStopDate = sowEnd;
-      if (empProjection[0].foreseenSowStop !== undefined && empProjection[0].foreseenSowStop !== "") {
-         let foreseenStopDate = new Date(dateTime.parse(empProjection[0].foreseenSowStop, "D-MMM-YYYY", true));
-         foreseenStopDate.setHours(0, 0, 0, 0);
+      let calcStartDate = monthFirstDate;
+      let calcStopDate = monthLastDate;
+      let forecastStopDate = sowEnd;
 
-         if ((foreseenStopDate.getFullYear() === sowEnd.getFullYear()) && (foreseenStopDate.getMonth() > sowEnd.getMonth())) {
-            effStopDate = foreseenStopDate;
-         }
-      }
-
-      let calcStartDate = new Date(monthFirstDate);
-      calcStartDate.setHours(0, 0, 0, 0);
-      let calcStopDate = new Date(monthLastDate);
-      calcStopDate.setHours(0, 0, 0, 0);
-
-      if ((sowStart.getFullYear() === calcStartDate.getFullYear()) && (sowStart.getMonth() === calcStartDate.getMonth())) {
+      if (sowStart.getFullYear() === calcStartDate.getFullYear() && sowStart.getMonth() === calcStartDate.getMonth()) {
          calcStartDate = sowStart;
       }
 
-      if ((effStopDate.getFullYear() === calcStopDate.getFullYear()) && (effStopDate.getMonth() === calcStopDate.getMonth())) {
-         calcStopDate = effStopDate;
+      if (sowEnd.getFullYear() === calcStopDate.getFullYear() && sowEnd.getMonth() === calcStopDate.getMonth()) {
+         calcStopDate = sowEnd;
       }
+
+      if (empProjection[0].foreseenSowStop !== undefined && empProjection[0].foreseenSowStop !== "") {
+         forecastStopDate = new Date(dateTime.parse(empProjection[0].foreseenSowStop, "D-MMM-YYYY", true));
+         forecastStopDate.setHours(0, 0, 0, 0);
+
+         if (forecastStopDate.getFullYear() === calcStopDate.getFullYear() && forecastStopDate.getMonth() === calcStopDate.getMonth()) {
+            calcStopDate = forecastStopDate;
+         }
+      }
+
+      calcStartDate.setHours(0, 0, 0, 0);
+      calcStopDate.setHours(0, 0, 0, 0);
 
       let intBufferHour = 0;
       await getBufferHours(empProjection[4].buffers, monthIndex, wrkHrPerDay, funcName).then((bufferHours) => {
@@ -266,7 +267,7 @@ function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
          let intBillRatePerHr = parseInt(billRatePerHr, 10);
          let revenueAmount = intRevenueHour * intBillRatePerHr;
          let cmiRevenueAmount = intCmiRevenueHour * intBillRatePerHr;
-         if (calcStartDate.getTime() >= sowStart.getTime() && calcStopDate.getTime() <= effStopDate.getTime()) {
+         if (calcStartDate.getTime() >= sowStart.getTime() && (calcStopDate.getTime() <= sowEnd.getTime() || calcStopDate.getTime() <= forecastStopDate.getTime())) {
             resolve({ "revenueMonth": revenueMonth, "revenueHour": intRevenueHour, "revenueAmount": revenueAmount, "cmiRevenueHour": intCmiRevenueHour, "cmiRevenueAmount": cmiRevenueAmount });
          } else { /* we aren't within SOW timeline */
             resolve({ "revenueMonth": revenueMonth, "revenueHour": 0, "revenueAmount": 0, "cmiRevenueHour": intCmiRevenueHour, "cmiRevenueAmount": cmiRevenueAmount });

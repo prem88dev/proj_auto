@@ -12,6 +12,36 @@ const esaProjColl = "esa_proj"
 const mSecInDay = 86400000;
 
 
+
+function listAllAssociates() {
+   let funcName = listAllAssociates.name;
+   return new Promise((resolve, reject) => {
+      dbObj.getDb().collection(empProjColl).aggregate([
+         { $sort: { "empLname": 1 } },
+         {
+            $project: {
+               "_id": {
+                  $concat: [
+                     { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
+                     { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
+                  ]
+               },
+               "empFname": "$empFname",
+               "empMname": "$empMname",
+               "empLname": "$empLname"
+            }
+         }
+      ]).toArray((err, employeeList) => {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(employeeList);
+         }
+      });
+   });
+}
+
+
 /*
    listAssociates: to get list of employees in a project
 
@@ -704,6 +734,7 @@ function getMinMaxAllocationYear(esaId, caller) {
 
 module.exports = {
    listAssociates,
+   listAllAssociates,
    getEmployeeLeaves,
    getBuffer,
    getProjection,

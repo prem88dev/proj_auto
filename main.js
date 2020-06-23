@@ -9,6 +9,7 @@ let bp = require('body-parser');
 let cors = require('cors');
 const { rejects } = require("assert");
 const e = require("express");
+const { listAllAssociates } = require("./employee");
 
 libApp.use(bp.urlencoded({ extended: true }));
 libApp.use(bp.json());
@@ -19,8 +20,8 @@ libApp.get("/projectList", (_req, res) => {
     projObj.listAllProjects("main").then((projectList) => {
         res.json(projectList);
     }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
+        errObj = { errCode: 500, error: err }
+        res.json(errObj);
     });
 });
 
@@ -29,12 +30,21 @@ libApp.get("/projectList", (_req, res) => {
 libApp.get("/workforce", (req, res) => {
     let esaId = req.query.esaId;
     let revenueYear = req.query.revenueYear;
-    empObj.listAssociates(esaId, revenueYear, "main").then((allEmpInProj) => {
-        res.json(allEmpInProj);
-    }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
-    });
+    if ((esaId === undefined || esaId === "") && (revenueYear === undefined || revenueYear === "")) {
+        empObj.listAllAssociates().then((employeeList) => {
+            res.json(employeeList)
+        }).catch((err) => {
+            errObj = { errCode: 500, error: err };
+            res.json(errObj);
+        });
+    } else {
+        empObj.listAssociates(esaId, revenueYear, "main").then((allEmpInProj) => {
+            res.json(allEmpInProj);
+        }).catch((err) => {
+            errObj = { errCode: 500, error: err }
+            res.json(errObj);
+        });
+    }
 });
 
 /* get one project revenue */
@@ -44,8 +54,8 @@ libApp.get("/projectRevenue", (req, res) => {
     projObj.getProjectRevenue(esaId, revenueYear, "main").then((projectRevenue) => {
         res.json(projectRevenue);
     }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
+        errObj = { errCode: 500, error: err }
+        res.json(errObj);
     });
 });
 
@@ -55,8 +65,8 @@ libApp.get("/dashboard", (req, res) => {
     projObj.getAllProjectRevenue(revenueYear, "main").then((projectRevenue) => {
         res.json(projectRevenue);
     }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        res.json(errobj);
+        errObj = { errCode: 500, error: err }
+        res.json(errObj);
     });
 });
 
@@ -67,8 +77,8 @@ libApp.get("/employeeRevenue", (req, res) => {
     empObj.getProjection(revenueYear, employeeFilter, "main").then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        return res.json(errobj);
+        errObj = { errCode: 500, error: err }
+        return res.json(errObj);
     });
 });
 
@@ -78,8 +88,8 @@ libApp.get("/minMaxAllocYear", (req, res) => {
     empObj.getMinMaxAllocationYear(esaId, "main").then((minMaxYear) => {
         res.json(minMaxYear);
     }).catch((err) => {
-        errobj = { errcode: 500, error: err }
-        return res.json(errobj);
+        errObj = { errCode: 500, error: err }
+        return res.json(errObj);
     });
 });
 

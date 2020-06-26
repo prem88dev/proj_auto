@@ -1,38 +1,6 @@
-const dbObj = require('./database');
-const empObj = require('./employee');
+const commObj = require("./utility");
+const empObj = require("./employee");
 const dateFormat = require("dateformat");
-const esaProjColl = "esa_proj";
-
-
-/* get list of projects */
-function listAllProjects(callerName) {
-   return new Promise((resolve, reject) => {
-      dbObj.getDb().collection(esaProjColl).aggregate([
-         {
-            $group: {
-               "_id": "$esaId",
-               "currency": { "$first": "$currency" },
-               "billingMode": { "$first": "$billingMode" },
-               "description": {
-                  "$addToSet": {
-                     "name": "$esaDesc",
-                     "subType": "$esaSubType"
-                  }
-               }
-            }
-         },
-         {
-            $sort: { "_id": 1 }
-         }
-      ]).toArray(function (err, projectList) {
-         if (err) {
-            reject(err);
-         } else {
-            resolve(projectList);
-         }
-      });
-   });
-}
 
 
 function addEmpRevenue(employeeRevenue, projectRevenue, callerName) {
@@ -86,12 +54,12 @@ function getProjectRevenue(esaId, revenueYear, callerName) {
          reject(funcName + ": Revenue year is not provided");
       } else {
          let empRevArr = [];
-         empObj.listAssociates(esaId, revenueYear, funcName).then(async (empInProj) => {
+         empObj.getProjectAndEmployeeForRevenueYear(esaId, revenueYear, funcName).then(async (empInProj) => {
             await empInProj.forEach((employee) => {
                let employeefilter = employee._id.toString();
                empRevArr.push(empObj.getProjection(revenueYear, employeefilter, funcName)
                   .catch((getProjectionErr) => { reject(getProjectionErr) }));
-            })
+            });
 
             if (empRevArr.length >= 1) {
                Promise.all(empRevArr).then((allEmpRevArr) => {
@@ -146,7 +114,7 @@ function getAllProjectRevenue(revenueYear, callerName) {
    let allProjRevArr = [];
    let dashboard = [];
    return new Promise((resolve, reject) => {
-      listAllProjects().then((projectList) => {
+      commObj.getProjectList(funcName).then((projectList) => {
          projectList.forEach((project) => {
             allProjRevArr.push(getProjectRevenue(project._id, revenueYear, funcName));
          });
@@ -169,7 +137,6 @@ function getAllProjectRevenue(revenueYear, callerName) {
 }
 
 module.exports = {
-   listAllProjects,
    getProjectRevenue,
    getAllProjectRevenue
 }

@@ -1,4 +1,38 @@
+const dbObj = require("./database");
+const esaProjColl = "esa_proj";
 const leaveHour = 4;
+
+/* get list of projects */
+function getProjectList(callerName) {
+   return new Promise((resolve, reject) => {
+      dbObj.getDb().collection(esaProjColl).aggregate([
+         {
+            $group: {
+               "_id": "$esaId",
+               "currency": { $first: "$currency" },
+               "billingMode": { $first: "$billingMode" },
+               "description": {
+                  $addToSet: {
+                     "name": "$esaDesc",
+                     "subType": "$esaSubType"
+                  }
+               }
+            }
+         },
+         { $unwind: "$description" },
+         { $sort: { "description.subType": 1 } },
+         { $group: { "_id": "$_id", "description": { $push: "$description" } } },
+         { $unwind: "$_id" },
+         { $sort: { "_id": 1 } }
+      ]).toArray(function (err, projectList) {
+         if (err) {
+            reject(err);
+         } else {
+            resolve(projectList);
+         }
+      });
+   });
+}
 
 function countWeekdays(leaveArr, callerName) {
    let funcName = countWeekdays.name;
@@ -168,5 +202,6 @@ module.exports = {
    countAllDays,
    countWeekends,
    calcLeaveHours,
-   getDaysBetween
+   getDaysBetween,
+   getProjectList
 }

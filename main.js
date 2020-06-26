@@ -9,7 +9,7 @@ let bp = require('body-parser');
 let cors = require('cors');
 const { rejects } = require("assert");
 const e = require("express");
-const { listAllAssociates } = require("./employee");
+const { getProjectAndEmployee } = require("./employee");
 
 libApp.use(bp.urlencoded({ extended: true }));
 libApp.use(bp.json());
@@ -17,7 +17,7 @@ libApp.use(cors());
 
 /* list projects */
 libApp.get("/projectList", (_req, res) => {
-    projObj.listAllProjects("main").then((projectList) => {
+    commObj.getProjectList("main").then((projectList) => {
         res.json(projectList);
     }).catch((err) => {
         errObj = { errCode: 500, error: err }
@@ -31,14 +31,14 @@ libApp.get("/workforce", (req, res) => {
     let esaId = req.query.esaId;
     let revenueYear = req.query.revenueYear;
     if ((esaId === undefined || esaId === "") && (revenueYear === undefined || revenueYear === "")) {
-        empObj.listAllAssociates().then((employeeList) => {
-            res.json(employeeList)
+        empObj.getWorkforce("main").then((workforce) => {
+            res.json(workforce)
         }).catch((err) => {
             errObj = { errCode: 500, error: err };
             res.json(errObj);
         });
     } else {
-        empObj.listAssociates(esaId, revenueYear, "main").then((allEmpInProj) => {
+        empObj.getProjectAndEmployeeForRevenueYear(esaId, revenueYear, "main").then((allEmpInProj) => {
             res.json(allEmpInProj);
         }).catch((err) => {
             errObj = { errCode: 500, error: err }
@@ -85,12 +85,21 @@ libApp.get("/employeeRevenue", (req, res) => {
 /* get projection of one employee */
 libApp.get("/minMaxAllocYear", (req, res) => {
     let esaId = req.query.esaId;
-    empObj.getMinMaxAllocationYear(esaId, "main").then((minMaxYear) => {
-        res.json(minMaxYear);
-    }).catch((err) => {
-        errObj = { errCode: 500, error: err }
-        return res.json(errObj);
-    });
+    if (esaId === undefined || esaId === null || esaId === "") {
+        empObj.getAllProjMinMaxAllocYear("main").then((minMaxYear) => {
+            res.json(minMaxYear);
+        }).catch((err) => {
+            errObj = { errCode: 500, error: err }
+            return res.json(errObj);
+        });
+    } else {
+        empObj.getMinMaxAllocationYear(esaId, "main").then((minMaxYear) => {
+            res.json(minMaxYear);
+        }).catch((err) => {
+            errObj = { errCode: 500, error: err }
+            return res.json(errObj);
+        });
+    }
 });
 
 try {

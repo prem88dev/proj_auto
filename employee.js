@@ -4,39 +4,93 @@ const commObj = require("./utility");
 const revObj = require("./revenue");
 const splWrkObj = require("./specialWorkday");
 const ObjectId = require("mongodb").ObjectID;
-const dateFormat = require("dateformat");
 const empLeaveColl = "emp_leave";
 const empBuffer = "emp_buffer";
 const empProjColl = "emp_proj";
-const esaProjColl = "esa_proj"
 const mSecInDay = 86400000;
 
 
-
-function listAllAssociates() {
-   let funcName = listAllAssociates.name;
+function getProjectAndEmployee(esaId, callerName) {
+   let funcName = getProjectAndEmployee.name;
+   let iEsaId = parseInt(esaId, 10);
    return new Promise((resolve, reject) => {
       dbObj.getDb().collection(empProjColl).aggregate([
          { $sort: { "empLname": 1 } },
+         { $match: { "esaId": iEsaId } },
+         {
+            $lookup: {
+               from: "esa_proj",
+               localField: "esaId",
+               foreignField: "esaId",
+               as: "esa_proj_match"
+            }
+         },
+         { $unwind: "$esa_proj_match" },
+         { $match: { $and: [{ "esa_proj_match.esaSubType": 0 }] } },
          {
             $project: {
-               "_id": {
-                  $concat: [
-                     { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                     { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
-                  ]
-               },
+               "_id": "$esaId",
+               "esaDesc": "$esa_proj_match.esaDesc",
+               "esaSubType": "$esaSubType",
+               "ctsEmpId": "$ctsEmpId",
+               "wrkHrPerDay": "$wrkHrPerDay",
+               "billRatePerHr": "$billRatePerHr",
                "empFname": "$empFname",
                "empMname": "$empMname",
                "empLname": "$empLname"
             }
+         },
+         {
+            $group: {
+               "_id": "$_id",
+               "esaDesc": { $first: "$esaDesc" },
+               "workforce": {
+                  $addToSet: {
+                     "employeeLinker": {
+                        $concat: [
+                           { $toString: "$_id" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
+                           { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
+                        ]
+                     },
+                     "empFname": "$empFname",
+                     "empMname": "$empMname",
+                     "empLname": "$empLname"
+                  }
+               }
+            }
+         },
+         { $unwind: "$workforce" },
+         { $sort: { "workforce.empLname": 1 } },
+         {
+            $group: {
+               "_id": "$_id",
+               "esaDesc": { $first: "$esaDesc" },
+               "workforce": { $push: "$workforce" }
+            }
          }
-      ]).toArray((err, employeeList) => {
+      ]).toArray((err, workForce) => {
          if (err) {
-            reject(err);
+            reject("DB error in " + funcName + ": " + err);
          } else {
-            resolve(employeeList);
+            resolve(workForce);
          }
+      });
+   });
+}
+
+
+function getWorkforce(callerName) {
+   let funcName = getWorkforce.name;
+   return new Promise((resolve, reject) => {
+      let employeeList = [];
+      commObj.getProjectList(funcName).then((projectList) => {
+         projectList.forEach((project) => {
+            employeeList.push(getProjectAndEmployee(project._id));
+         });
+      }).then(() => {
+         Promise.all(employeeList).then((workForce) => {
+            resolve(workForce);
+         });
       });
    });
 }
@@ -51,8 +105,8 @@ function listAllAssociates() {
    
    returns array of employee with their first, middle and last names
 */
-function listAssociates(esaId, revenueYear, callerName) {
-   let funcName = listAssociates.name;
+function getProjectAndEmployeeForRevenueYear(esaId, revenueYear, callerName) {
+   let funcName = getProjectAndEmployeeForRevenueYear.name;
    return new Promise((resolve, reject) => {
       if (esaId === undefined || esaId === "") {
          reject(funcName + ": ESA id is not provided");
@@ -66,6 +120,7 @@ function listAssociates(esaId, revenueYear, callerName) {
          let revenueStop = new Date(iRevenueYear, 12, 1);
          revenueStop.setUTCHours(0, 0, 0, 0);
          dbObj.getDb().collection(empProjColl).aggregate([
+            { $sort: { "empLname": 1 } },
             {
                $project: {
                   "empFname": "$empFname",
@@ -202,7 +257,7 @@ function listAssociates(esaId, revenueYear, callerName) {
                   "empLname": "$empLname"
                }
             }
-         ]).toArray(function (err, allProj) {
+         ]).toArray((err, allProj) => {
             if (err) {
                reject("DB error in " + funcName + ": " + err);
             } else {
@@ -650,7 +705,7 @@ function getProjection(revenueYear, employeeFilter, callerName) {
 }
 
 /* get min and max allocation year for manufacturing year drop down */
-function getMinMaxAllocationYear(esaId, caller) {
+function getMinMaxAllocationYear(esaId, callerName) {
    let funcName = getMinMaxAllocationYear.name;
    return new Promise((resolve, reject) => {
       if (esaId === undefined || esaId === "") {
@@ -732,11 +787,84 @@ function getMinMaxAllocationYear(esaId, caller) {
 }
 
 
+/* get min and max allocation year for manufacturing year drop down */
+function getAllProjMinMaxAllocYear(callerName) {
+   let funcName = getMinMaxAllocationYear.name;
+   return new Promise((resolve, reject) => {
+      dbObj.getDb().collection(empProjColl).aggregate([
+         {
+            $project: {
+               "sowBegin": {
+                  $dateFromParts: {
+                     year: { $toInt: { $substr: ["$sowStart", 4, -1] } },
+                     month: { $toInt: { $substr: ["$sowStart", 2, 2] } },
+                     day: { $toInt: { $substr: ["$sowStart", 0, 2] } },
+                     hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                  }
+               },
+               "sowEnd": {
+                  $dateFromParts: {
+                     year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
+                     month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
+                     day: { $toInt: { $substr: ["$sowStop", 0, 2] } },
+                     hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                  }
+               },
+               "foreseenSowEnd": {
+                  $cond: {
+                     if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                        $dateFromParts: {
+                           year: { $toInt: { $substr: ["$foreseenSowStop", 4, -1] } },
+                           month: { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } },
+                           day: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } },
+                           hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                        }
+                     }, else: {
+                        $dateFromParts: {
+                           year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
+                           month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
+                           day: { $toInt: { $substr: ["$sowStop", 0, 2] } },
+                           hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
+                        }
+                     }
+                  }
+               }
+            }
+         },
+         {
+            $group: {
+               "_id": "minMaxYear",
+               "minYear": { $min: { $year: "$sowBegin" } },
+               "maxYear": {
+                  $max: {
+                     $cond: {
+                        if: { $gt: ["$foreseenSowStop", "$sowEnd"] }, then: {
+                           $year: "$foreseenSowStop"
+                        }, else: {
+                           $year: "$sowEnd"
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      ]).toArray((err, minMaxYear) => {
+         if (err) {
+            reject("DB error in " + funcName + ": " + err);
+         } else {
+            resolve(minMaxYear);
+         }
+      });
+   })
+}
+
+
 module.exports = {
-   listAssociates,
-   listAllAssociates,
+   getWorkforce,
+   getProjectAndEmployeeForRevenueYear,
    getEmployeeLeaves,
    getBuffer,
    getProjection,
-   getMinMaxAllocationYear
+   getMinMaxAllocationYear,
+   getAllProjMinMaxAllocYear
 }

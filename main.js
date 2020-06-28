@@ -30,21 +30,12 @@ libApp.get("/projectList", (_req, res) => {
 libApp.get("/workforce", (req, res) => {
     let esaId = req.query.esaId;
     let revenueYear = req.query.revenueYear;
-    if ((esaId === undefined || esaId === "") && (revenueYear === undefined || revenueYear === "")) {
-        empObj.getWorkforce("main").then((workforce) => {
-            res.json(workforce)
-        }).catch((err) => {
-            errObj = { errCode: 500, error: err };
-            res.json(errObj);
-        });
-    } else {
-        empObj.getProjectAndEmployeeForRevenueYear(esaId, revenueYear, "main").then((allEmpInProj) => {
-            res.json(allEmpInProj);
-        }).catch((err) => {
-            errObj = { errCode: 500, error: err }
-            res.json(errObj);
-        });
-    }
+    empObj.getWorkforce(esaId, revenueYear, "main").then((workforce) => {
+        res.json(workforce)
+    }).catch((err) => {
+        errObj = { errCode: 500, error: err };
+        res.json(errObj);
+    });
 });
 
 /* get one project revenue */

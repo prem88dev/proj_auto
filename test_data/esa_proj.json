@@ -2,6 +2,7 @@
 	{
 		"esaId": 1000278366,
 		"esaSubType": 0,
+		"isMasterDesc":1,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's-IBM PA-JAN 2020",
 		"currency": "USD",
@@ -16,6 +17,7 @@
 	{
 		"esaId": 1000043321,
 		"esaSubType": 0,
+		"isMasterDesc":1,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's Projects",
 		"currency": "USD",
@@ -30,6 +32,7 @@
 	{
 		"esaId": 1000101627,
 		"esaSubType": 0,
+		"isMasterDesc":1,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's APM Genesis",
 		"currency": "USD",
@@ -44,6 +47,7 @@
 	{
 		"esaId": 1000156100,
 		"esaSubType": 0,
+		"isMasterDesc":1,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowes_Resourcing Project",
 		"currency": "USD",
@@ -58,6 +62,7 @@
 	{
 		"esaId": 1000165319,
 		"esaSubType": 0,
+		"isMasterDesc":1,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's DFC",
 		"currency": "USD",
@@ -72,6 +77,7 @@
 	{
 		"esaId": 1000251958,
 		"esaSubType": 5,
+		"isMasterDesc":0,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's Digital PODs(SDET)",
 		"currency": "USD",
@@ -86,6 +92,7 @@
 	{
 		"esaId": 1000251958,
 		"esaSubType": 0,
+		"isMasterDesc":1,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's Digital POD(SITESPEED)",
 		"currency": "USD",
@@ -100,6 +107,7 @@
 	{
 		"esaId": 1000251958,
 		"esaSubType": 1,
+		"isMasterDesc":0,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's Digital POD(RECOMMENDATION)",
 		"currency": "USD",
@@ -114,6 +122,7 @@
 	{
 		"esaId": 1000251958,
 		"esaSubType": 2,
+		"isMasterDesc":0,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's Digital POD(CATALOG)",
 		"currency": "USD",
@@ -128,6 +137,7 @@
 	{
 		"esaId": 1000251958,
 		"esaSubType": 3,
+		"isMasterDesc":0,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's Digital POD(POST TRANSACTION)",
 		"currency": "USD",
@@ -142,6 +152,7 @@
 	{
 		"esaId": 1000251958,
 		"esaSubType": 4,
+		"isMasterDesc":0,
 		"contractGroup": "CSCM",
 		"esaDesc": "Lowe's Digital PODs",
 		"currency": "USD",

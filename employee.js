@@ -7,94 +7,47 @@ const ObjectId = require("mongodb").ObjectID;
 const empLeaveColl = "emp_leave";
 const empBuffer = "emp_buffer";
 const empProjColl = "emp_proj";
+const esaProjColl = "esa_proj";
 const mSecInDay = 86400000;
 
 
-function getProjectAndEmployee(esaId, callerName) {
-   let funcName = getProjectAndEmployee.name;
-   let iEsaId = parseInt(esaId, 10);
+function getMasterDescription(esaId, callerName) {
+   let funcName = getMasterDescription.name;
    return new Promise((resolve, reject) => {
-      dbObj.getDb().collection(empProjColl).aggregate([
-         { $sort: { "empLname": 1 } },
-         { $match: { "esaId": iEsaId } },
-         {
-            $lookup: {
-               from: "esa_proj",
-               localField: "esaId",
-               foreignField: "esaId",
-               as: "esa_proj_match"
-            }
-         },
-         { $unwind: "$esa_proj_match" },
-         { $match: { $and: [{ "esa_proj_match.esaSubType": 0 }] } },
-         {
-            $project: {
-               "_id": "$esaId",
-               "esaDesc": "$esa_proj_match.esaDesc",
-               "esaSubType": "$esaSubType",
-               "ctsEmpId": "$ctsEmpId",
-               "wrkHrPerDay": "$wrkHrPerDay",
-               "billRatePerHr": "$billRatePerHr",
-               "empFname": "$empFname",
-               "empMname": "$empMname",
-               "empLname": "$empLname"
-            }
-         },
-         {
-            $group: {
-               "_id": "$_id",
-               "esaDesc": { $first: "$esaDesc" },
-               "workforce": {
-                  $addToSet: {
-                     "employeeLinker": {
-                        $concat: [
-                           { $toString: "$_id" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                           { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
-                        ]
-                     },
-                     "empFname": "$empFname",
-                     "empMname": "$empMname",
-                     "empLname": "$empLname"
-                  }
-               }
-            }
-         },
-         { $unwind: "$workforce" },
-         { $sort: { "workforce.empLname": 1 } },
-         {
-            $group: {
-               "_id": "$_id",
-               "esaDesc": { $first: "$esaDesc" },
-               "workforce": { $push: "$workforce" }
-            }
-         }
-      ]).toArray((err, workForce) => {
+      let iEsaId = parseInt(esaId, 10);
+      dbObj.getDb().collection(esaProjColl).aggregate([
+         { $match: { "esaId": iEsaId, "isMasterDesc": 1 } },
+         { $project: { "_id": "$esaId", "esaDesc": "$esaDesc" } }
+      ]).toArray((err, projMasterDesc) => {
          if (err) {
-            reject("DB error in " + funcName + ": " + err);
+            reject(err);
          } else {
-            resolve(workForce);
+            resolve(projMasterDesc);
          }
       });
    });
 }
 
-
-function getWorkforce(callerName) {
-   let funcName = getWorkforce.name;
+function getProjectDescription(esaId, callerName) {
+   let funcName = getProjectDescription.name;
    return new Promise((resolve, reject) => {
-      let employeeList = [];
-      commObj.getProjectList(funcName).then((projectList) => {
-         projectList.forEach((project) => {
-            employeeList.push(getProjectAndEmployee(project._id));
+      if (esaId === undefined || esaId === "") {
+         commObj.getProjectList(funcName).then((projectList) => {
+            projectList.forEach((project) => {
+               employeeList.push(getMasterDescription(project._id, calcYear, funcName));
+            });
+         }).then(() => {
+            Promise.all(employeeList).then((workForce) => {
+               resolve(workForce);
+            });
          });
-      }).then(() => {
-         Promise.all(employeeList).then((workForce) => {
-            resolve(workForce);
+      } else {
+         getMasterDescription(esaId, funcName).then((projMasterDesc) => {
+            resolve(projMasterDesc);
          });
-      });
+      }
    });
 }
-
 
 /*
    listAssociates: to get list of employees in a project
@@ -105,8 +58,8 @@ function getWorkforce(callerName) {
    
    returns array of employee with their first, middle and last names
 */
-function getProjectAndEmployeeForRevenueYear(esaId, revenueYear, callerName) {
-   let funcName = getProjectAndEmployeeForRevenueYear.name;
+function getProjectEmployeeList(esaId, revenueYear, callerName) {
+   let funcName = getProjectEmployeeList.name;
    return new Promise((resolve, reject) => {
       if (esaId === undefined || esaId === "") {
          reject(funcName + ": ESA id is not provided");
@@ -121,12 +74,13 @@ function getProjectAndEmployeeForRevenueYear(esaId, revenueYear, callerName) {
          revenueStop.setUTCHours(0, 0, 0, 0);
          dbObj.getDb().collection(empProjColl).aggregate([
             { $sort: { "empLname": 1 } },
+            { $match: { "esaId": iEsaId } },
             {
                $project: {
+                  "_id": "$esaId",
                   "empFname": "$empFname",
                   "empMname": "$empMname",
                   "empLname": "$empLname",
-                  "esaId": "$esaId",
                   "esaSubType": "$esaSubType",
                   "ctsEmpId": "$ctsEmpId",
                   "wrkHrPerDay": "$wrkHrPerDay",
@@ -156,14 +110,14 @@ function getProjectAndEmployeeForRevenueYear(esaId, revenueYear, callerName) {
                               day: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } },
                               hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                            }
-                        }, else: "$foreseenSowStop"
+                        }, else: "$sowEnd"
                      }
                   }
                }
             },
             {
                $match: {
-                  "esaId": iEsaId,
+                  "_id": iEsaId,
                   $or: [
                      {
                         $and: [
@@ -245,28 +199,80 @@ function getProjectAndEmployeeForRevenueYear(esaId, revenueYear, callerName) {
                }
             },
             {
-               $project: {
-                  "_id": {
-                     $concat: [
-                        { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                        { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
-                     ]
-                  },
-                  "empFname": "$empFname",
-                  "empMname": "$empMname",
-                  "empLname": "$empLname"
+               $group: {
+                  "_id": "$_id",
+                  "workforce": {
+                     $addToSet: {
+                        "employeeLinker": {
+                           $concat: [
+                              { $toString: "$_id" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
+                              { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
+                           ]
+                        },
+                        "empFname": "$empFname",
+                        "empMname": "$empMname",
+                        "empLname": "$empLname"
+                     }
+                  }
+               }
+            },
+            { $unwind: "$workforce" },
+            { $sort: { "workforce.empLname": 1 } },
+            {
+               $group: {
+                  "_id": "$_id",
+                  "workforce": { $push: "$workforce" }
                }
             }
-         ]).toArray((err, allProj) => {
+         ]).toArray((err, projectEmployeeDump) => {
             if (err) {
                reject("DB error in " + funcName + ": " + err);
+            } else if (projectEmployeeDump.length > 0) {
+               getProjectDescription(projectEmployeeDump[0]._id, funcName).then((masterDescription) => {
+                  resolve({ "_id": masterDescription[0]._id, "esaDesc": masterDescription[0].esaDesc, "workforce": projectEmployeeDump[0].workforce });
+               });
             } else {
-               resolve(allProj);
+               getProjectDescription(esaId, funcName).then((masterDescription) => {
+                  resolve({ "_id": masterDescription[0]._id, "esaDesc": masterDescription[0].esaDesc, "workforce": projectEmployeeDump });
+               });
             }
          });
       }
    });
 }
+
+
+function getWorkforce(esaId, revenueYear, callerName) {
+   let funcName = getWorkforce.name;
+   return new Promise((resolve, reject) => {
+      if (esaId !== undefined && esaId !== "" && revenueYear !== undefined && revenueYear !== "") {
+         getProjectEmployeeList(esaId, revenueYear, funcName).then((allEmpInProj) => {
+            resolve(allEmpInProj);
+         });
+      } else if ((esaId !== undefined && esaId !== "") && (revenueYear === undefined || revenueYear === "")) {
+         let currentYear = (new Date()).getFullYear();
+         getProjectEmployeeList(esaId, currentYear, funcName).then((allEmpInProj) => {
+            resolve(allEmpInProj);
+         });
+      } else {
+         let employeeList = [];
+         let calcYear = (new Date()).getFullYear();
+         if (revenueYear !== undefined && revenueYear !== "") {
+            calcYear = revenueYear;
+         }
+         commObj.getProjectList(funcName).then((projectList) => {
+            projectList.forEach((project) => {
+               employeeList.push(getProjectEmployeeList(project._id, calcYear, funcName));
+            });
+         }).then(() => {
+            Promise.all(employeeList).then((workForce) => {
+               resolve(workForce);
+            });
+         });
+      }
+   });
+}
+
 
 
 function getEmployeeLeaves(employeeFilter, leaveStartDate, leaveStopDate, callerName) {
@@ -861,7 +867,8 @@ function getAllProjMinMaxAllocYear(callerName) {
 
 module.exports = {
    getWorkforce,
-   getProjectAndEmployeeForRevenueYear,
+   getProjectEmployeeList,
+   getProjectDescription,
    getEmployeeLeaves,
    getBuffer,
    getProjection,

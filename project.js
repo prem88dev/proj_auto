@@ -54,24 +54,25 @@ function getProjectRevenue(esaId, revenueYear, callerName) {
          reject(funcName + ": Revenue year is not provided");
       } else {
          let empRevArr = [];
-         empObj.getProjectAndEmployeeForRevenueYear(esaId, revenueYear, funcName).then(async (empInProj) => {
-            await empInProj.forEach((employee) => {
-               let employeefilter = employee._id.toString();
-               empRevArr.push(empObj.getProjection(revenueYear, employeefilter, funcName)
+         empObj.getWorkforce(esaId, revenueYear, funcName).then(async (projObj) => {
+            let empList = projObj.workforce
+            await empList.forEach((employee) => {
+               empRevArr.push(empObj.getProjection(revenueYear, employee.employeeLinker, funcName)
                   .catch((getProjectionErr) => { reject(getProjectionErr) }));
             });
 
             if (empRevArr.length >= 1) {
                Promise.all(empRevArr).then((allEmpRevArr) => {
                   calcProjectRevenue(allEmpRevArr, "", 0, funcName).then((projectRevenue) => {
+                     let tmpEmpObj = allEmpRevArr[0];
                      let prjRevArr = [];
                      if (projectRevenue.length > 0) {
                         projectRevenue.forEach((prjDtl) => {
                            prjRevArr.push({ "revenueMonth": prjDtl.revenueMonth, "revenueAmount": prjDtl.revenueAmount, "cmiRevenueAmount": prjDtl.cmiRevenueAmount });
                         });
-                        allEmpRevArr.push({ "projectRevenue": prjRevArr });
+                        allEmpRevArr.push({ "currency": tmpEmpObj[0].currency, "projectRevenue": prjRevArr });
                      } else {
-                        allEmpRevArr.push({ "projectRevenue": projectRevenue });
+                        allEmpRevArr.push({ "currency": tmpEmpObj[0].currency, "projectRevenue": projectRevenue });
                      }
                      resolve(allEmpRevArr);
                   });

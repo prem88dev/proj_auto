@@ -34,7 +34,7 @@ function getProjectDescription(esaId, callerName) {
       if (esaId === undefined || esaId === "") {
          commObj.getProjectList(funcName).then((projectList) => {
             projectList.forEach((project) => {
-               employeeList.push(getMasterDescription(project._id, calcYear, funcName));
+               employeeList.push(getMasterDescription(project._id, funcName));
             });
          }).then(() => {
             Promise.all(employeeList).then((workForce) => {
@@ -73,7 +73,7 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
          let revenueStop = new Date(iRevenueYear, 12, 1);
          revenueStop.setUTCHours(0, 0, 0, 0);
          dbObj.getDb().collection(empProjColl).aggregate([
-            { $sort: { "empLname": 1 } },
+            { $sort: { "empFname": 1 } },
             { $match: { "esaId": iEsaId } },
             {
                $project: {
@@ -217,7 +217,7 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
                }
             },
             { $unwind: "$workforce" },
-            { $sort: { "workforce.empLname": 1 } },
+            { $sort: { "workforce.empFname": 1 } },
             {
                $group: {
                   "_id": "$_id",
@@ -245,24 +245,24 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
 function getWorkforce(esaId, revenueYear, callerName) {
    let funcName = getWorkforce.name;
    return new Promise((resolve, reject) => {
+      let currentYear = (new Date()).getFullYear();
       if (esaId !== undefined && esaId !== "" && revenueYear !== undefined && revenueYear !== "") {
          getProjectEmployeeList(esaId, revenueYear, funcName).then((allEmpInProj) => {
             resolve(allEmpInProj);
          });
       } else if ((esaId !== undefined && esaId !== "") && (revenueYear === undefined || revenueYear === "")) {
-         let currentYear = (new Date()).getFullYear();
          getProjectEmployeeList(esaId, currentYear, funcName).then((allEmpInProj) => {
             resolve(allEmpInProj);
          });
       } else {
          let employeeList = [];
-         let calcYear = (new Date()).getFullYear();
+         let forYear = currentYear;
          if (revenueYear !== undefined && revenueYear !== "") {
-            calcYear = revenueYear;
+            forYear = revenueYear;
          }
          commObj.getProjectList(funcName).then((projectList) => {
             projectList.forEach((project) => {
-               employeeList.push(getProjectEmployeeList(project._id, calcYear, funcName));
+               employeeList.push(getProjectEmployeeList(project._id, forYear, funcName));
             });
          }).then(() => {
             Promise.all(employeeList).then((workForce) => {

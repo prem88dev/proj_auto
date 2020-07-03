@@ -28,26 +28,6 @@ function getMasterDescription(esaId, callerName) {
    });
 }
 
-function getProjectDescription(esaId, callerName) {
-   let funcName = getProjectDescription.name;
-   return new Promise((resolve, reject) => {
-      if (esaId === undefined || esaId === "") {
-         commObj.getProjectList(funcName).then((projectList) => {
-            projectList.forEach((project) => {
-               employeeList.push(getMasterDescription(project._id, funcName));
-            });
-         }).then(() => {
-            Promise.all(employeeList).then((workForce) => {
-               resolve(workForce);
-            });
-         });
-      } else {
-         getMasterDescription(esaId, funcName).then((projMasterDesc) => {
-            resolve(projMasterDesc);
-         });
-      }
-   });
-}
 
 /*
    listAssociates: to get list of employees in a project
@@ -228,11 +208,11 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
             if (err) {
                reject("DB error in " + funcName + ": " + err);
             } else if (projectEmployeeDump.length > 0) {
-               getProjectDescription(projectEmployeeDump[0]._id, funcName).then((masterDescription) => {
+               getMasterDescription(esaId, funcName).then((masterDescription) => {
                   resolve({ "_id": masterDescription[0]._id, "esaDesc": masterDescription[0].esaDesc, "workforce": projectEmployeeDump[0].workforce });
                });
             } else {
-               getProjectDescription(esaId, funcName).then((masterDescription) => {
+               getMasterDescription(esaId, funcName).then((masterDescription) => {
                   resolve({ "_id": masterDescription[0]._id, "esaDesc": masterDescription[0].esaDesc, "workforce": projectEmployeeDump });
                });
             }
@@ -868,7 +848,6 @@ function getAllProjMinMaxAllocYear(callerName) {
 module.exports = {
    getWorkforce,
    getProjectEmployeeList,
-   getProjectDescription,
    getEmployeeLeaves,
    getBuffer,
    getProjection,

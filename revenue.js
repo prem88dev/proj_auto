@@ -25,53 +25,77 @@ function getBufferHours(empBufferArr, monthIndex, callerName) {
 }
 
 
-function computeLeaveHour(leaveArr, leaveDate, wrkHrPerDay, callerName) {
-   let funcName = computeLeaveHour.name;
-   let leaveHour = 0;
+function computeSelfLocLeaveOrLocSplWorkHour(referenceArr, leaveDate, workHourPerDay, callerName) {
+   let funcName = computeSelfLocLeaveOrLocSplWorkHour.name;
+   let iLeaveHour = 0;
+   let iWorkHourPerDay = 0;
+   if (workHourPerDay !== undefined && workHourPerDay !== "") {
+      iWorkHourPerDay = parseInt(workHourPerDay, 10);
+   }
    return new Promise(async (resolve, reject) => {
-      if ((leaveArr.length > 0) && (leaveDate !== undefined && leaveDate !== "") &&
-         (wrkHrPerDay !== undefined && wrkHrPerDay !== "")) {
-         let iWrkHourPerDay = parseInt(wrkHrPerDay, 10);
-         await leaveArr.forEach((leave, idx) => {
-            if (idx < (leaveArr.length - 1)) {
-               let checkDate = new Date(leaveDate);
-               checkDate.setHours(0, 0, 0, 0);
-               let leaveStart = new Date(leave.startDate);
-               leaveStart.setHours(0, 0, 0, 0);
-               let leaveStop = new Date(leave.stopDate);
-               leaveStop.setHours(0, 0, 0, 0);
-               if (checkDate.getTime() >= leaveStart.getTime() && checkDate.getTime() <= leaveStop.getTime()) {
-                  if (leave.halfDay !== undefined && leave.halfDay !== "" && leave.halfDay === "Y") {
-                     if (leave.leaveHour === undefined || leave.leaveHour === "") {
-                        if (iWrkHourPerDay === 1) {
-                           leaveHour = iWrkHourPerDay;
-                        } else if (iWrkHourPerDay > 1) {
-                           if ((iWrkHourPerDay % 2) === 0) {
-                              leaveHour = iWrkHourPerDay / 2;
-                           } else {
-                              leaveHour = (iWrkHourPerDay + 1) / 2;
-                           }
-                        }
+      if (referenceArr !== undefined && referenceArr.length > 0 && leaveDate !== undefined && leaveDate !== "") {
+         await referenceArr.forEach((leave) => {
+            let checkDate = new Date(leaveDate);
+            checkDate.setHours(0, 0, 0, 0);
+            let leaveStart = new Date(leave.startDate);
+            leaveStart.setHours(0, 0, 0, 0);
+            let leaveStop = new Date(leave.stopDate);
+            leaveStop.setHours(0, 0, 0, 0);
+            if (checkDate.getTime() >= leaveStart.getTime() && checkDate.getTime() <= leaveStop.getTime()) {
+               if (leave.halfDay !== undefined && leave.halfDay !== "" && leave.halfDay === "Y") {
+                  if (leave.leaveHour === undefined || leave.leaveHour === "") {
+                     if ((iWorkHourPerDay % 2) === 0) {
+                        iLeaveHour = iWorkHourPerDay / 2;
                      } else {
-                        leaveHour = parseInt(leave.leaveHour, 10);
+                        iLeaveHour = (iWorkHourPerDay + 1) / 2;
                      }
-                  } else if (leave.halfDay !== undefined && leave.halfDay !== "" && leave.halfDay === "N") {
-                     leaveHour = iWrkHourPerDay;
+                  } else {
+                     iLeaveHour = parseInt(leave.leaveHour, 10);
                   }
+               } else if (leave.halfDay !== undefined && leave.halfDay !== "" && leave.halfDay === "N") {
+                  iLeaveHour = iWorkHourPerDay;
                }
             }
          });
-         resolve(leaveHour);
+         resolve(iLeaveHour);
       } else {
-         resolve(leaveHour);
+         resolve(iLeaveHour);
       }
    });
 }
 
 
-function calcRevenueHour(wrkHrPerDay, monthlyDetail, startDate, stopDate, revenueHour, callerName) {
+function computeEmpExtraWorkHour(empSplWorkArr, workDate, workHourPerDay, callerName) {
+   let funcName = computeEmpExtraWorkHour.name;
+   let iExtraWorkHour = 0;
+   let iWorkHourPerDay = 0;
+   if (workHourPerDay !== undefined && workHourPerDay !== "") {
+      iWorkHourPerDay = parseInt(workHourPerDay, 10);
+   }
+   return new Promise(async (resolve, reject) => {
+      if (empSplWorkArr !== undefined && empSplWorkArr.length > 0 && workDate !== undefined && workDate !== "") {
+         await empSplWorkArr.forEach((extraWork) => {
+            let checkDate = new Date(workDate);
+            checkDate.setHours(0, 0, 0, 0);
+            let extraWorkStart = new Date(extraWork.startDate);
+            extraWorkStart.setHours(0, 0, 0, 0);
+            let extraWorkStop = new Date(extraWork.stopDate);
+            extraWorkStop.setHours(0, 0, 0, 0);
+            if (checkDate.getTime() >= extraWorkStart.getTime() && checkDate.getTime() <= extraWorkStop.getTime()) {
+               iExtraWorkHour += extraWork.workHour;
+            }
+         });
+         resolve(iExtraWorkHour);
+      } else {
+         resolve(iExtraWorkHour);
+      }
+   });
+}
+
+
+function calcRevenueHour(workHourPerDay, monthlyDetail, startDate, stopDate, revenueHour, callerName) {
    let funcName = calcRevenueHour.name;
-   return new Promise(async (resolve, _reject) => {
+   return new Promise(async (resolve, reject) => {
       let calcStartDate = new Date(startDate);
       calcStartDate.setHours(0, 0, 0, 0);
       let calcStopDate = new Date(stopDate);
@@ -81,81 +105,41 @@ function calcRevenueHour(wrkHrPerDay, monthlyDetail, startDate, stopDate, revenu
          return resolve(revenueHour);
       } else {
          let dayOfWeek = calcStartDate.getDay();
-         let intSelfLeaveHour = 0;
-         let intLocLeaveHour = 0;
-         let intSelfAddlHour = 0;
-         let intLocAddlHour = 0
+         let iSelfLeaveHour = 0;
+         let iSelfAddlHour = 0;
 
-         await computeLeaveHour(monthlyDetail["leaves"], calcStartDate, wrkHrPerDay, funcName).then((selfLeaveHour) => {
-            intSelfLeaveHour = parseInt(selfLeaveHour, 10);
+         await computeSelfLocLeaveOrLocSplWorkHour(monthlyDetail[0].leaves, calcStartDate, workHourPerDay, funcName).then((selfLeaveHour) => {
+            iSelfLeaveHour = parseInt(selfLeaveHour, 10);
          });
 
-         await computeLeaveHour(monthlyDetail["publicHolidays"], calcStartDate, wrkHrPerDay, funcName).then((locLeaveHour) => {
-            intLocLeaveHour = parseInt(locLeaveHour, 10);
-         });
-
-         await computeLeaveHour(monthlyDetail["specialWorkDays"].empSplWrk, calcStartDate, wrkHrPerDay, funcName).then((selfAddlHour) => {
-            intSelfAddlHour = parseInt(selfAddlHour, 10);
-         });
-
-         await computeLeaveHour(monthlyDetail["specialWorkDays"].locSplWrk, calcStartDate, wrkHrPerDay, funcName).then((locAddlHour) => {
-            intLocAddlHour = parseInt(locAddlHour, 10);
+         await computeEmpExtraWorkHour(monthlyDetail[0].specialWorkDays["empSplWrk"], calcStartDate, workHourPerDay, funcName).then((selfAddlHour) => {
+            iSelfAddlHour = parseInt(selfAddlHour, 10);
          });
 
          if (dayOfWeek > 0 && dayOfWeek < 6) { /* weekday */
-            if (intSelfLeaveHour === 0 && intLocLeaveHour === 0) { /* it's neither a personal leave nor a public holiday */
-               revenueHour += wrkHrPerDay;
-            } else if (intSelfLeaveHour > 0 && intLocLeaveHour === 0) { /* it's a personal leave and not a public holiday */
-               if (intSelfAddlHour >= wrkHrPerDay) {
-                  revenueHour += wrkHrPerDay;
-               } else if (intSelfAddlHour > intSelfLeaveHour) {
-                  revenueHour += intSelfAddlHour;
-               } else if (intSelfAddlHour > 0 && intSelfAddlHour < intSelfLeaveHour) {
-                  revenueHour += intSelfLeaveHour - intSelfAddlHour;
-               } else if (intSelfLeaveHour === intSelfAddlHour) {
-                  revenueHour += wrkHrPerDay;
-               } else if (intSelfLeaveHour <= wrkHrPerDay) {
-                  revenueHour += wrkHrPerDay - intSelfLeaveHour;
-               }
-            } else if (intSelfLeaveHour === 0 && intLocLeaveHour > 0) { /* it's a public holiday and there is no personal leave that overlaps it */
-               /* employee might have worked on this pubic holiday */
-               if (intSelfAddlHour >= wrkHrPerDay) {
-                  revenueHour += wrkHrPerDay;
-               } else if (intSelfAddlHour > 0) {
-                  revenueHour += intSelfAddlHour;
-               }
-            } else if (intSelfLeaveHour > 0 && intLocLeaveHour > 0) {
-               if (intSelfAddlHour >= wrkHrPerDay) {
-                  revenueHour += wrkHrPerDay;
-               } else if (intSelfAddlHour > intSelfLeaveHour) {
-                  revenueHour += intSelfAddlHour;
-               } else if (intSelfAddlHour > 0 && intSelfAddlHour < intSelfLeaveHour) {
-                  revenueHour += intSelfLeaveHour - intSelfAddlHour;
-               } else if (intSelfLeaveHour === intSelfAddlHour) {
-                  revenueHour += wrkHrPerDay;
-               } else if (intSelfLeaveHour <= wrkHrPerDay) {
-                  revenueHour += wrkHrPerDay - intSelfLeaveHour;
-               }
+            if (iSelfLeaveHour === 0 || (iSelfAddlHour >= iSelfLeaveHour)) {
+               revenueHour += workHourPerDay;
+            } else if (iSelfAddlHour < iSelfLeaveHour) {
+               revenueHour += ((workHourPerDay - iSelfLeaveHour) + iSelfAddlHour);
             }
          } else { /* weekend */
-            if (intSelfAddlHour >= wrkHrPerDay) {
-               revenueHour += wrkHrPerDay;
-            } else if (intSelfAddlHour > 0) {
-               revenueHour += intSelfAddlHour;
+            if (iSelfAddlHour >= workHourPerDay) {
+               revenueHour += workHourPerDay;
+            } else if (iSelfAddlHour > 0) {
+               revenueHour += iSelfAddlHour;
             }
          }
 
          calcStartDate.setDate(calcStartDate.getDate() + 1);
-         return resolve(calcRevenueHour(wrkHrPerDay, monthlyDetail, calcStartDate, stopDate, revenueHour, funcName));
+         return resolve(calcRevenueHour(workHourPerDay, monthlyDetail, calcStartDate, stopDate, revenueHour, funcName));
       }
    });
 }
 
 
-
-function calcCmiRevenueHour(wrkHrPerDay, monthlyDetail, startDate, stopDate, cmiRevenueHour, callerName) {
+function calcCmiRevenueHour(workHourPerDay, monthlyDetail, startDate, stopDate, cmiRevenueHour, callerName) {
    let funcName = calcCmiRevenueHour.name;
-   return new Promise(async (resolve, _reject) => {
+   return new Promise(async (resolve, reject) => {
       let calcStartDate = new Date(startDate);
       calcStartDate.setHours(0, 0, 0, 0);
       let calcStopDate = new Date(stopDate);
@@ -165,78 +149,43 @@ function calcCmiRevenueHour(wrkHrPerDay, monthlyDetail, startDate, stopDate, cmi
          return resolve(cmiRevenueHour);
       } else {
          let dayOfWeek = calcStartDate.getDay();
-         let intSelfLeaveHour = 0;
-         let intLocLeaveHour = 0;
-         let intSelfAddlHour = 0;
-         let intLocAddlHour = 0
+         let iLocLeaveHour = 0;
+         let iLocAddlHour = 0
 
-         await computeLeaveHour(monthlyDetail["leaves"], calcStartDate, wrkHrPerDay, funcName).then((selfLeaveHour) => {
-            intSelfLeaveHour = parseInt(selfLeaveHour, 10);
+         await computeSelfLocLeaveOrLocSplWorkHour(monthlyDetail[0].publicHolidays, calcStartDate, workHourPerDay, funcName).then((locLeaveHour) => {
+            iLocLeaveHour = parseInt(locLeaveHour, 10);
          });
 
-         await computeLeaveHour(monthlyDetail["publicHolidays"], calcStartDate, wrkHrPerDay, funcName).then((locLeaveHour) => {
-            intLocLeaveHour = parseInt(locLeaveHour, 10);
-         });
-
-         await computeLeaveHour(monthlyDetail["specialWorkDays"].empSplWrk, calcStartDate, wrkHrPerDay, funcName).then((selfAddlHour) => {
-            intSelfAddlHour = parseInt(selfAddlHour, 10);
-         });
-
-         await computeLeaveHour(monthlyDetail["specialWorkDays"].locSplWrk, calcStartDate, wrkHrPerDay, funcName).then((locAddlHour) => {
-            intLocAddlHour = parseInt(locAddlHour, 10);
+         await computeSelfLocLeaveOrLocSplWorkHour(monthlyDetail[0].specialWorkDays["locSplWrk"], calcStartDate, workHourPerDay, funcName).then((locAddlHour) => {
+            iLocAddlHour = parseInt(locAddlHour, 10);
          });
 
          if (dayOfWeek > 0 && dayOfWeek < 6) { /* weekday */
-            if (intSelfLeaveHour === 0 && intLocLeaveHour === 0) { /* it's neither a personal leave nor a public holiday */
-               cmiRevenueHour += wrkHrPerDay;
-            } else if (intSelfLeaveHour > 0 && intLocLeaveHour === 0) { /* it's a personal leave and not a public holiday */
-               cmiRevenueHour += wrkHrPerDay;
-            } else if (intSelfLeaveHour === 0 && intLocLeaveHour > 0) {
-               /* public holiday might have turned to be a working day. If yes, consider those hours in revenue calculation */
-               if (intLocAddlHour >= wrkHrPerDay) {
-                  cmiRevenueHour += wrkHrPerDay;
-               } else if (intLocAddlHour > intLocLeaveHour) {
-                  cmiRevenueHour += intLocAddlHour;
-               } else if (intLocAddlHour > 0 && intLocAddlHour < intLocLeaveHour) {
-                  cmiRevenueHour += intLocLeaveHour - intLocAddlHour;
-               } else if (intLocLeaveHour === intLocAddlHour) {
-                  cmiRevenueHour += wrkHrPerDay;
-               } else if (intLocLeaveHour <= wrkHrPerDay) {
-                  cmiRevenueHour += wrkHrPerDay - intLocLeaveHour;
-               }
-            } else if (intSelfLeaveHour > 0 && intLocLeaveHour > 0) {
-               if (intLocAddlHour >= wrkHrPerDay) {
-                  cmiRevenueHour += wrkHrPerDay;
-               } else if (intLocAddlHour > intLocLeaveHour) {
-                  cmiRevenueHour += intLocAddlHour;
-               } else if (intLocAddlHour > 0 && intLocAddlHour < intLocLeaveHour) {
-                  cmiRevenueHour += intLocLeaveHour - intLocAddlHour;
-               } else if (intLocLeaveHour === intLocAddlHour) {
-                  cmiRevenueHour += wrkHrPerDay;
-               } else if (intLocLeaveHour <= wrkHrPerDay) {
-                  cmiRevenueHour += wrkHrPerDay - intLocLeaveHour;
-               }
+            if (iLocLeaveHour === 0 || (iLocAddlHour >= iLocLeaveHour)) { /* not a location holiday */
+               cmiRevenueHour += workHourPerDay;
+            } else if (iLocAddlHour < iLocLeaveHour) { /* location holiday. but has been made a working day */
+               cmiRevenueHour += ((workHourPerDay - iLocLeaveHour) + iLocAddlHour);
             }
          } else { /* weekend */
-            if (intLocAddlHour >= wrkHrPerDay) {
-               cmiRevenueHour += wrkHrPerDay;
-            } else if (intLocAddlHour > 0) {
-               cmiRevenueHour += intLocAddlHour;
+            if (iLocAddlHour >= workHourPerDay) {
+               cmiRevenueHour += workHourPerDay;
+            } else {
+               cmiRevenueHour += iLocAddlHour;
             }
          }
 
          calcStartDate.setDate(calcStartDate.getDate() + 1);
-         return resolve(calcCmiRevenueHour(wrkHrPerDay, monthlyDetail, calcStartDate, stopDate, cmiRevenueHour, funcName));
+         return resolve(calcCmiRevenueHour(workHourPerDay, monthlyDetail, calcStartDate, stopDate, cmiRevenueHour, funcName));
       }
    });
 }
 
 
-function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
+function getMonthlyRevenue(empProjection, monthlyDetail, revenueYear, monthIndex, callerName) {
    let funcName = getMonthlyRevenue.name;
-   return new Promise(async (resolve, _reject) => {
-      let wrkHrPerDay = parseInt(empProjection[0].wrkHrPerDay, 10);
-      let billRatePerHr = parseInt(empProjection[0].billRatePerHr, 10);
+   return new Promise(async (resolve, reject) => {
+      let iWorkHourPerDay = parseInt(empProjection[0].workHourPerDay, 10);
+      let iBillRatePerHour = parseInt(empProjection[0].billRatePerHour, 10);
       let calcYear = parseInt(revenueYear, 10);
       let calcStartMonth = parseInt(monthIndex, 10);
       let calcStopMonth = parseInt(monthIndex, 10) + 1;
@@ -248,23 +197,23 @@ function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
 
       let sowStart = new Date(dateTime.parse(empProjection[0].sowStart, "D-MMM-YYYY", true));
       sowStart.setHours(0, 0, 0, 0);
-      let sowEnd = new Date(dateTime.parse(empProjection[0].sowStop, "D-MMM-YYYY", true));
-      sowEnd.setHours(0, 0, 0, 0);
+      let sowStop = new Date(dateTime.parse(empProjection[0].sowStop, "D-MMM-YYYY", true));
+      sowStop.setHours(0, 0, 0, 0);
 
       let calcStartDate = monthFirstDate;
       let calcStopDate = monthLastDate;
-      let forecastStopDate = sowEnd;
+      let forecastStopDate = sowStop;
 
       if (sowStart.getFullYear() === calcStartDate.getFullYear() && sowStart.getMonth() === calcStartDate.getMonth()) {
          calcStartDate = sowStart;
       }
 
-      if (sowEnd.getFullYear() === calcStopDate.getFullYear() && sowEnd.getMonth() === calcStopDate.getMonth()) {
-         calcStopDate = sowEnd;
+      if (sowStop.getFullYear() === calcStopDate.getFullYear() && sowStop.getMonth() === calcStopDate.getMonth()) {
+         calcStopDate = sowStop;
       }
 
-      if (empProjection[0].foreseenSowStop !== undefined && empProjection[0].foreseenSowStop !== "") {
-         forecastStopDate = new Date(dateTime.parse(empProjection[0].foreseenSowStop, "D-MMM-YYYY", true));
+      if (empProjection[0].forecastSowStop !== undefined && empProjection[0].forecastSowStop !== "") {
+         forecastStopDate = new Date(dateTime.parse(empProjection[0].forecastSowStop, "D-MMM-YYYY", true));
          forecastStopDate.setHours(0, 0, 0, 0);
 
          if (forecastStopDate.getFullYear() === calcStopDate.getFullYear()) {
@@ -281,20 +230,20 @@ function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
       calcStartDate.setHours(0, 0, 0, 0);
       calcStopDate.setHours(0, 0, 0, 0);
 
-      let monthlyDetail = empProjection[1].monthlyDetail[monthIndex];
       let iBufferHour = 0;
-      if (monthlyDetail.length > 0) {
-         iBufferHour = monthlyDetail["buffers"][0].hours;
+      if (monthlyDetail.length > 0 && monthlyDetail["buffers"] !== undefined || monthlyDetail["buffers"] !== "") {
+         if (monthlyDetail[0]["buffers"].length > 0) {
+            iBufferHour = monthlyDetail[0]["buffers"][0].hours;
+         }
       }
-      await calcRevenueHour(wrkHrPerDay, monthlyDetail, calcStartDate, calcStopDate, 0, funcName).then(async (revenueHour) => {
-         await calcCmiRevenueHour(wrkHrPerDay, monthlyDetail, monthFirstDate, monthLastDate, 0, funcName).then((cmiRevenueHour) => {
+      await calcRevenueHour(iWorkHourPerDay, monthlyDetail, calcStartDate, calcStopDate, 0, funcName).then(async (revenueHour) => {
+         await calcCmiRevenueHour(iWorkHourPerDay, monthlyDetail, monthFirstDate, monthLastDate, 0, funcName).then((cmiRevenueHour) => {
             let revenueMonth = dateFormat(calcStartDate, "mmm-yyyy");
             let iRevenueHour = parseInt(revenueHour, 10) - iBufferHour;
             let iCmiRevenueHour = parseInt(cmiRevenueHour, 10);
-            let iBillRatePerHr = parseInt(billRatePerHr, 10);
-            let iRevenueAmount = iRevenueHour * iBillRatePerHr;
-            let iCmiRevenueAmount = iCmiRevenueHour * iBillRatePerHr;
-            if (calcStartDate.getTime() >= sowStart.getTime() && (calcStopDate.getTime() <= sowEnd.getTime() || calcStopDate.getTime() <= forecastStopDate.getTime())) {
+            let iRevenueAmount = iRevenueHour * iBillRatePerHour;
+            let iCmiRevenueAmount = iCmiRevenueHour * iBillRatePerHour;
+            if (calcStartDate.getTime() >= sowStart.getTime() && (calcStopDate.getTime() <= sowStop.getTime() || calcStopDate.getTime() <= forecastStopDate.getTime())) {
                resolve({ "revenueMonth": revenueMonth, "revenueHour": iRevenueHour, "revenueAmount": iRevenueAmount, "cmiRevenueHour": iCmiRevenueHour, "cmiRevenueAmount": iCmiRevenueAmount });
             } else { /* we aren't within SOW timeline */
                resolve({ "revenueMonth": revenueMonth, "revenueHour": 0, "revenueAmount": 0, "cmiRevenueHour": iCmiRevenueHour, "cmiRevenueAmount": iCmiRevenueAmount });
@@ -308,9 +257,10 @@ function getMonthlyRevenue(empProjection, revenueYear, monthIndex, callerName) {
 function computeRevenue(empProjection, revenueYear, callerName) {
    let monthRevArr = [];
    let funcName = computeRevenue.name;
-   return new Promise((resolve, _reject) => {
+   return new Promise((resolve, reject) => {
       for (let monthIndex = 0; monthIndex <= 11; monthIndex++) {
-         monthRevArr.push(getMonthlyRevenue(empProjection, revenueYear, monthIndex, funcName));
+         let monthlyDetail = empProjection[1].monthlyDetail[monthIndex];
+         monthRevArr.push(getMonthlyRevenue(empProjection, monthlyDetail, revenueYear, monthIndex, funcName));
       }
       Promise.all(monthRevArr).then((monthRevenue) => {
          resolve(monthRevenue);

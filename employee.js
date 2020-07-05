@@ -54,19 +54,19 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
          let revenueStop = new Date(iRevenueYear, 12, 1);
          revenueStop.setUTCHours(0, 0, 0, 0);
          dbObj.getDb().collection(empProjColl).aggregate([
-            { $sort: { "empFname": 1 } },
+            { $sort: { "firstName": 1 } },
             { $match: { "esaId": iEsaId } },
             {
                $project: {
                   "_id": "$esaId",
-                  "empFname": "$empFname",
-                  "empMname": "$empMname",
-                  "empLname": "$empLname",
+                  "firstName": "$firstName",
+                  "middleName": "$middleName",
+                  "lastName": "$lastName",
                   "esaSubType": "$esaSubType",
                   "ctsEmpId": "$ctsEmpId",
-                  "wrkHrPerDay": "$wrkHrPerDay",
-                  "billRatePerHr": "$billRatePerHr",
-                  "sowBegin": {
+                  "workHourPerDay": "$workHourPerDay",
+                  "billRatePerHour": "$billRatePerHour",
+                  "sowStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$sowStart", 4, -1] } },
                         month: { $toInt: { $substr: ["$sowStart", 2, 2] } },
@@ -74,7 +74,7 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   },
-                  "sowEnd": {
+                  "sowStop": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
                         month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
@@ -82,16 +82,16 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   },
-                  "foreseenSowEnd": {
+                  "forecastSowStop": {
                      $cond: {
-                        if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                        if: { $ne: ["$forecastSowStop", ""] }, then: {
                            $dateFromParts: {
-                              year: { $toInt: { $substr: ["$foreseenSowStop", 4, -1] } },
-                              month: { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } },
-                              day: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } },
+                              year: { $toInt: { $substr: ["$forecastSowStop", 4, -1] } },
+                              month: { $toInt: { $substr: ["$forecastSowStop", 2, 2] } },
+                              day: { $toInt: { $substr: ["$forecastSowStop", 0, 2] } },
                               hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                            }
-                        }, else: "$sowEnd"
+                        }, else: "$sowStop"
                      }
                   }
                }
@@ -102,30 +102,30 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
                   $or: [
                      {
                         $and: [
-                           { "sowBegin": { "$lte": revenueStart } },
+                           { "sowStart": { "$lte": revenueStart } },
                            {
                               $or: [
-                                 { "sowEnd": { "$gte": revenueStop } },
-                                 { "foreseenSowEnd": { "$gte": revenueStop } }
+                                 { "sowStop": { "$gte": revenueStop } },
+                                 { "forecastSowStop": { "$gte": revenueStop } }
                               ]
                            }
                         ]
                      },
                      {
                         $and: [
-                           { "sowBegin": { "$lte": revenueStart } },
+                           { "sowStart": { "$lte": revenueStart } },
                            {
                               $or: [
                                  {
                                     $and: [
-                                       { "sowEnd": { "$gte": revenueStart } },
-                                       { "sowEnd": { "$lte": revenueStop } }
+                                       { "sowStop": { "$gte": revenueStart } },
+                                       { "sowStop": { "$lte": revenueStop } }
                                     ]
                                  },
                                  {
                                     $and: [
-                                       { "foreseenSowEnd": { "$gte": revenueStart } },
-                                       { "foreseenSowEnd": { "$lte": revenueStop } }
+                                       { "forecastSowStop": { "$gte": revenueStart } },
+                                       { "forecastSowStop": { "$lte": revenueStop } }
                                     ]
                                  }
                               ]
@@ -134,20 +134,20 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
                      },
                      {
                         $and: [
-                           { "sowBegin": { "$gte": revenueStart } },
-                           { "sowBegin": { "$lte": revenueStop } },
+                           { "sowStart": { "$gte": revenueStart } },
+                           { "sowStart": { "$lte": revenueStop } },
                            {
                               $or: [
                                  {
                                     $and: [
-                                       { "sowEnd": { "$gte": revenueStart } },
-                                       { "sowEnd": { "$lte": revenueStop } }
+                                       { "sowStop": { "$gte": revenueStart } },
+                                       { "sowStop": { "$lte": revenueStop } }
                                     ]
                                  },
                                  {
                                     $and: [
-                                       { "foreseenSowEnd": { "$gte": revenueStart } },
-                                       { "foreseenSowEnd": { "$lte": revenueStop } }
+                                       { "forecastSowStop": { "$gte": revenueStart } },
+                                       { "forecastSowStop": { "$lte": revenueStop } }
                                     ]
                                  }
                               ]
@@ -156,20 +156,20 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
                      },
                      {
                         $and: [
-                           { "sowBegin": { "$gte": revenueStart } },
-                           { "sowBegin": { "$lte": revenueStop } },
+                           { "sowStart": { "$gte": revenueStart } },
+                           { "sowStart": { "$lte": revenueStop } },
                            {
                               $or: [
                                  {
                                     $and: [
-                                       { "sowEnd": { "$gte": revenueStart } },
-                                       { "sowEnd": { "$gte": revenueStop } }
+                                       { "sowStop": { "$gte": revenueStart } },
+                                       { "sowStop": { "$gte": revenueStop } }
                                     ]
                                  },
                                  {
                                     $and: [
-                                       { "sowEnd": { "$gte": revenueStart } },
-                                       { "sowEnd": { "$gte": revenueStop } }
+                                       { "sowStop": { "$gte": revenueStart } },
+                                       { "sowStop": { "$gte": revenueStop } }
                                     ]
                                  }
                               ]
@@ -187,18 +187,18 @@ function getProjectEmployeeList(esaId, revenueYear, callerName) {
                         "employeeLinker": {
                            $concat: [
                               { $toString: "$_id" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                              { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
+                              { $toString: "$workHourPerDay" }, "-", { $toString: "$billRatePerHour" }
                            ]
                         },
-                        "empFname": "$empFname",
-                        "empMname": "$empMname",
-                        "empLname": "$empLname"
+                        "firstName": "$firstName",
+                        "middleName": "$middleName",
+                        "lastName": "$lastName"
                      }
                   }
                }
             },
             { $unwind: "$workforce" },
-            { $sort: { "workforce.empFname": 1 } },
+            { $sort: { "workforce.firstName": 1 } },
             {
                $group: {
                   "_id": "$_id",
@@ -278,7 +278,10 @@ function getEmployeeLeaves(employeeFilter, leaveStartDate, leaveStopDate, caller
                   "startDate": "$startDate",
                   "stopDate": "$stopDate",
                   "halfDay": "$halfDay",
+                  "leaveHour": "$leaveHour",
                   "reason": "$reason",
+                  "editLock": "$editLock",
+                  "lockedBy": "$lockedBy",
                   "leaveStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$startDate", 4, -1] } },
@@ -350,7 +353,9 @@ function getEmployeeLeaves(employeeFilter, leaveStartDate, leaveStopDate, caller
                   },
                   "halfDay": "$halfDay",
                   "leaveHour": "$leaveHour",
-                  "reason": "$reason"
+                  "reason": "$reason",
+                  "editLock": "$editLock",
+                  "lockedBy": "$lockedBy"
                }
             },
             {
@@ -502,8 +507,8 @@ function getProjection(revenueYear, employeeFilter, callerName) {
          let iEsaId = 0;
          let iEsaSubType = -1; /* sub-type of esa id has zero-based index */
          let iCtsEmpId = 0;
-         let iWrkHrPerDay = 0;
-         let iBillingRatePerHr = 0;
+         let iWorkHourPerDay = 0;
+         let iBillingRatePerHour = 0;
          let filterSplit = employeeFilter.split("-");
          if (filterSplit.length === 5) {
             filterSplit.forEach((splitVal, idx) => {
@@ -514,13 +519,13 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                } else if (idx === 2) {
                   iCtsEmpId = parseInt(splitVal, 10);
                } else if (idx === 3) {
-                  iWrkHrPerDay = parseInt(splitVal, 10);
+                  iWorkHourPerDay = parseInt(splitVal, 10);
                } else if (idx === 4) {
-                  iBillingRatePerHr = parseInt(splitVal, 10);
+                  iBillingRatePerHour = parseInt(splitVal, 10);
                }
             });
 
-            if (iEsaId === 0 || iEsaSubType === -1 || iCtsEmpId === 0 || iWrkHrPerDay === 0 || iBillingRatePerHr === 0) {
+            if (iEsaId === 0 || iEsaSubType === -1 || iCtsEmpId === 0 || iWorkHourPerDay === 0 || iBillingRatePerHour === 0) {
                reject(funcName + ": Filter parameter is not proper");
             } else {
                dbObj.getDb().collection(empProjColl).aggregate([
@@ -563,8 +568,8 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                         "esaId": iEsaId,
                         "esaSubType": iEsaSubType,
                         "ctsEmpId": iCtsEmpId,
-                        "wrkHrPerDay": iWrkHrPerDay,
-                        "billRatePerHr": iBillingRatePerHr
+                        "workHourPerDay": iWorkHourPerDay,
+                        "billRatePerHour": iBillingRatePerHour
                      }
                   },
                   {
@@ -572,7 +577,7 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                         "_id": {
                            $concat: [
                               { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
-                              { $toString: "$wrkHrPerDay" }, "-", { $toString: "$billRatePerHr" }
+                              { $toString: "$workHourPerDay" }, "-", { $toString: "$billRatePerHour" }
                            ]
                         },
                         "esaId": "$esaId",
@@ -580,19 +585,19 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                         "esaDesc": "$esa_proj_match.esaDesc",
                         "projName": "$projName",
                         "ctsEmpId": "$ctsEmpId",
-                        "empFname": "$empFname",
-                        "empMname": "$empMname",
-                        "empLname": "$empLname",
+                        "firstName": "$firstName",
+                        "middleName": "$middleName",
+                        "lastName": "$lastName",
                         "lowesUid": "$lowesUid",
                         "deptName": "$deptName",
                         "sowStart": "$sowStart",
                         "sowStop": "$sowStop",
-                        "foreseenSowStop": "$foreseenSowStop",
+                        "forecastSowStop": "$forecastSowStop",
                         "cityCode": "$wrk_loc_match.cityCode",
                         "cityName": "$wrk_loc_match.cityName",
                         "siteInd": "$wrk_loc_match.siteInd",
-                        "wrkHrPerDay": "$wrkHrPerDay",
-                        "billRatePerHr": "$billRatePerHr",
+                        "workHourPerDay": "$workHourPerDay",
+                        "billRatePerHour": "$billRatePerHour",
                         "currency": "$esa_proj_match.currency"
                      }
                   },
@@ -634,22 +639,22 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                               }, else: "$sowStop"
                            }
                         },
-                        foreseenSowStop: {
+                        forecastSowStop: {
                            $cond: {
-                              if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                              if: { $ne: ["$forecastSowStop", ""] }, then: {
                                  $let: {
                                     vars: {
                                        monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
                                     },
                                     in: {
                                        $concat: [
-                                          { $toString: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } } }, "-",
-                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } }] }, "-",
-                                          { $substr: ["$foreseenSowStop", 4, -1] }
+                                          { $toString: { $toInt: { $substr: ["$forecastSowStop", 0, 2] } } }, "-",
+                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$forecastSowStop", 2, 2] } }] }, "-",
+                                          { $substr: ["$forecastSowStop", 4, -1] }
                                        ]
                                     }
                                  }
-                              }, else: "$foreseenSowStop"
+                              }, else: "$forecastSowStop"
                            }
                         }
                      }
@@ -660,9 +665,10 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                   } else if (empProjection.length === 1) {
                      let employeeFilter = empProjection[0]._id;
                      let cityCode = empProjection[0].cityCode;
-                     let monthlyDetail = [];
+                     let annualRevenue = [];
 
                      for (let monthIdx = 0; monthIdx <= 11; monthIdx++) {
+                        let monthlyDetail = [];
                         let selfLeave = [];
                         let locLeave = [];
                         let splWrk = [];
@@ -691,12 +697,11 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                         });
 
                         monthlyDetail.push({ "monthName": monthName, "leaves": selfLeave, "publicHolidays": locLeave, "specialWorkDays": splWrk, "buffers": buffer });
+                        await revObj.getMonthlyRevenue(empProjection, monthlyDetail, iRevenueYear, monthIdx).then((revenue) => {
+                           annualRevenue.push({ "monthName": monthName, "leaves": selfLeave, "publicHolidays": locLeave, "specialWorkDays": splWrk, "buffers": buffer, "revenue": revenue });
+                        });
                      }
-
-                     empProjection.push({ "monthlyDetail": monthlyDetail });
-                     await revObj.computeRevenue(empProjection, iRevenueYear, funcName).then((revenueArr) => {
-                        empProjection.push({ "revenue": revenueArr });
-                     });
+                     empProjection.push({ "monthlyDetail": annualRevenue });
                      resolve(empProjection);
                   } else {
                      reject(funcName + ": More than one record found for filter [" + employeeFilter + "]");
@@ -727,7 +732,7 @@ function getMinMaxAllocationYear(esaId, callerName) {
             {
                $project: {
                   "esaId": "$esaId",
-                  "sowBegin": {
+                  "sowStart": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$sowStart", 4, -1] } },
                         month: { $toInt: { $substr: ["$sowStart", 2, 2] } },
@@ -735,7 +740,7 @@ function getMinMaxAllocationYear(esaId, callerName) {
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   },
-                  "sowEnd": {
+                  "sowStop": {
                      $dateFromParts: {
                         year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
                         month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
@@ -743,13 +748,13 @@ function getMinMaxAllocationYear(esaId, callerName) {
                         hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                      }
                   },
-                  "foreseenSowEnd": {
+                  "forecastSowStop": {
                      $cond: {
-                        if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                        if: { $ne: ["$forecastSowStop", ""] }, then: {
                            $dateFromParts: {
-                              year: { $toInt: { $substr: ["$foreseenSowStop", 4, -1] } },
-                              month: { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } },
-                              day: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } },
+                              year: { $toInt: { $substr: ["$forecastSowStop", 4, -1] } },
+                              month: { $toInt: { $substr: ["$forecastSowStop", 2, 2] } },
+                              day: { $toInt: { $substr: ["$forecastSowStop", 0, 2] } },
                               hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                            }
                         }, else: {
@@ -767,14 +772,14 @@ function getMinMaxAllocationYear(esaId, callerName) {
             {
                $group: {
                   "_id": "$esaId",
-                  "minYear": { $min: { $year: "$sowBegin" } },
+                  "minYear": { $min: { $year: "$sowStart" } },
                   "maxYear": {
                      $max: {
                         $cond: {
-                           if: { $gt: ["$foreseenSowStop", "$sowEnd"] }, then: {
-                              $year: "$foreseenSowStop"
+                           if: { $gt: ["$forecastSowStop", "$sowStop"] }, then: {
+                              $year: "$forecastSowStop"
                            }, else: {
-                              $year: "$sowEnd"
+                              $year: "$sowStop"
                            }
                         }
                      }
@@ -800,7 +805,7 @@ function getAllProjMinMaxAllocYear(callerName) {
       dbObj.getDb().collection(empProjColl).aggregate([
          {
             $project: {
-               "sowBegin": {
+               "sowStart": {
                   $dateFromParts: {
                      year: { $toInt: { $substr: ["$sowStart", 4, -1] } },
                      month: { $toInt: { $substr: ["$sowStart", 2, 2] } },
@@ -808,7 +813,7 @@ function getAllProjMinMaxAllocYear(callerName) {
                      hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                   }
                },
-               "sowEnd": {
+               "sowStop": {
                   $dateFromParts: {
                      year: { $toInt: { $substr: ["$sowStop", 4, -1] } },
                      month: { $toInt: { $substr: ["$sowStop", 2, 2] } },
@@ -816,13 +821,13 @@ function getAllProjMinMaxAllocYear(callerName) {
                      hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                   }
                },
-               "foreseenSowEnd": {
+               "forecastSowStop": {
                   $cond: {
-                     if: { $ne: ["$foreseenSowStop", ""] }, then: {
+                     if: { $ne: ["$forecastSowStop", ""] }, then: {
                         $dateFromParts: {
-                           year: { $toInt: { $substr: ["$foreseenSowStop", 4, -1] } },
-                           month: { $toInt: { $substr: ["$foreseenSowStop", 2, 2] } },
-                           day: { $toInt: { $substr: ["$foreseenSowStop", 0, 2] } },
+                           year: { $toInt: { $substr: ["$forecastSowStop", 4, -1] } },
+                           month: { $toInt: { $substr: ["$forecastSowStop", 2, 2] } },
+                           day: { $toInt: { $substr: ["$forecastSowStop", 0, 2] } },
                            hour: 0, minute: 0, second: 0, millisecond: 0, timezone: "UTC"
                         }
                      }, else: {
@@ -840,14 +845,14 @@ function getAllProjMinMaxAllocYear(callerName) {
          {
             $group: {
                "_id": "minMaxYear",
-               "minYear": { $min: { $year: "$sowBegin" } },
+               "minYear": { $min: { $year: "$sowStart" } },
                "maxYear": {
                   $max: {
                      $cond: {
-                        if: { $gt: ["$foreseenSowStop", "$sowEnd"] }, then: {
-                           $year: "$foreseenSowStop"
+                        if: { $gt: ["$forecastSowStop", "$sowStop"] }, then: {
+                           $year: "$forecastSowStop"
                         }, else: {
-                           $year: "$sowEnd"
+                           $year: "$sowStop"
                         }
                      }
                   }

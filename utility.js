@@ -37,7 +37,7 @@ function getProjectList(callerName) {
 function countWeekdays(leaveArr, callerName) {
    let funcName = countWeekdays.name;
    let weekdaysInLeave = 0;
-   return new Promise(async (resolve, _reject) => {
+   return new Promise(async (resolve, reject) => {
       await leaveArr.forEach((leave) => {
          getDaysBetween(leave.startDate, leave.stopDate, true, false, funcName).then((weekdays) => {
             if (leave.halfDay === "Y") {
@@ -54,7 +54,7 @@ function countWeekdays(leaveArr, callerName) {
 function countWeekends(leaveArr, callerName) {
    let funcName = countWeekends.name;
    let weekendsInLeave = 0;
-   return new Promise(async (resolve, _reject) => {
+   return new Promise(async (resolve, reject) => {
       await leaveArr.forEach((leave) => {
          getDaysBetween(leave.startDate, leave.stopDate, false, true, funcName).then((weekends) => {
             if (leave.halfDay === "Y") {
@@ -71,7 +71,7 @@ function countWeekends(leaveArr, callerName) {
 function countAllDays(leaveArr, callerName) {
    let funcName = countAllDays.name;
    let leaveDays = 0;
-   return new Promise(async (resolve, _reject) => {
+   return new Promise(async (resolve, reject) => {
       await leaveArr.forEach((leave) => {
          getDaysBetween(leave.startDate, leave.stopDate, true, true, funcName).then((daysBetween) => {
             if (leave.halfDay === "Y") {
@@ -89,7 +89,7 @@ function countAllDays(leaveArr, callerName) {
 function getDaysBetween(startDate, stopDate, inclWeekdays, inclWeekends, callerName) {
    let funcName = getDaysBetween.name;
    let daysBetween = 0;
-   return new Promise((resolve, _reject) => {
+   return new Promise((resolve, reject) => {
       if (startDate === undefined || stopDate === undefined) {
          resolve(daysBetween);
       } else {

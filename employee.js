@@ -1,3 +1,4 @@
+const dateFormat = require("dateformat");
 const dbObj = require("./database");
 const locObj = require("./location");
 const commObj = require("./utility");
@@ -653,33 +654,52 @@ function getProjection(revenueYear, employeeFilter, callerName) {
                         }
                      }
                   }
-               ]).toArray((err, empProjection) => {
+               ]).toArray(async (err, empProjection) => {
                   if (err) {
                      reject("DB error in " + funcName + ": " + err);
                   } else if (empProjection.length === 1) {
                      let employeeFilter = empProjection[0]._id;
                      let cityCode = empProjection[0].cityCode;
+                     let monthlyDetail = [];
 
-                     getEmployeeLeaves(employeeFilter, revenueStart, revenueStop, funcName).then((selfLeaveArr) => {
-                        empProjection.push({ "leaves": selfLeaveArr });
-                        locObj.getPublicHolidays(cityCode, revenueStart, revenueStop, funcName).then((locHolArr) => {
-                           empProjection.push({ "publicHolidays": locHolArr });
-                           splWrkObj.getSplWrkDays(employeeFilter, cityCode, revenueStart, revenueStop, funcName).then((splWrkArr) => {
-                              empProjection.push({ "specialWorkDays": splWrkArr });
-                              getBuffer(employeeFilter, revenueStart, revenueStop, funcName).then((bufferArr) => {
-                                 empProjection.push({ "buffers": bufferArr });
-                                 revObj.computeRevenue(empProjection, iRevenueYear, funcName).then((revenueArr) => {
-                                    empProjection.push({ "revenue": revenueArr });
-                                    resolve(empProjection);
-                                 }).catch((computeRevenueErr) => { reject(computeRevenueErr); });
-                              }).catch((getBufferErr) => { reject(getBufferErr); });
-                           }).catch((getSplWrkDaysErr) => { reject(getSplWrkDaysErr); });
-                        }).catch((getPublicHolidaysErr) => { reject(getPublicHolidaysErr); });
-                     }).catch((getEmployeeLeavesErr) => { reject(getEmployeeLeavesErr); });
-                  } else if (empProjection.length === 0) {
-                     reject(funcName + ": No records found for filter [" + filterParam + "]");
-                  } else if (empProjection.length > 1) {
-                     reject(funcName + ": More than one record found for filter [" + filterParam + "]");
+                     for (let monthIdx = 0; monthIdx <= 11; monthIdx++) {
+                        let selfLeave = [];
+                        let locLeave = [];
+                        let splWrk = [];
+                        let buffer = [];
+                        let nextMonth = monthIdx + 1;
+                        let monthStartDate = new Date(iRevenueYear, monthIdx, 2);
+                        monthStartDate.setUTCHours(0, 0, 0, 0);
+                        let monthStopDate = new Date(iRevenueYear, nextMonth, 1);
+                        monthStopDate.setUTCHours(0, 0, 0, 0);
+                        let monthName = dateFormat(monthStartDate, "mmm-yyyy");
+
+                        await getEmployeeLeaves(employeeFilter, monthStartDate, monthStopDate, funcName).then((selfLeaveArr) => {
+                           selfLeave = selfLeaveArr;
+                        });
+
+                        await locObj.getPublicHolidays(cityCode, monthStartDate, monthStopDate, funcName).then((locHolArr) => {
+                           locLeave = locHolArr;
+                        });
+
+                        await splWrkObj.getSplWrkDays(employeeFilter, cityCode, monthStartDate, monthStopDate, funcName).then((splWrkArr) => {
+                           splWrk = splWrkArr;
+                        });
+
+                        await getBuffer(employeeFilter, monthStartDate, monthStopDate, funcName).then((bufferArr) => {
+                           buffer = bufferArr
+                        });
+
+                        monthlyDetail.push({ "monthName": monthName, "leaves": selfLeave, "publicHolidays": locLeave, "specialWorkDays": splWrk, "buffers": buffer });
+                     }
+
+                     empProjection.push({ "monthlyDetail": monthlyDetail });
+                     await revObj.computeRevenue(empProjection, iRevenueYear, funcName).then((revenueArr) => {
+                        empProjection.push({ "revenue": revenueArr });
+                     });
+                     resolve(empProjection);
+                  } else {
+                     reject(funcName + ": More than one record found for filter [" + employeeFilter + "]");
                   }
                });
             }

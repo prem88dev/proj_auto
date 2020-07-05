@@ -36,7 +36,7 @@ function calcProjectRevenue(allEmpRevArr, projectRevenue, empDataIdx, callerName
       if (empIdx === allEmpRevArr.length) {
          return resolve(projectRevenue);
       } else {
-         addEmpRevenue(allEmpRevArr[empIdx][5].revenue, projectRevenue, funcName).then((projRev) => {
+         addEmpRevenue(allEmpRevArr[empIdx][2].revenue, projectRevenue, funcName).then((projRev) => {
             let nextDataIdx = empIdx + 1;
             return resolve(calcProjectRevenue(allEmpRevArr, projRev, nextDataIdx, funcName));
          });

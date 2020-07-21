@@ -715,6 +715,225 @@ function getProjection(revenueYear, employeeFilter, callerName) {
    });
 }
 
+
+
+/* get projection data for specific employee in selected project */
+function getEmployeeMonthlyCalendar(revenueYear, monthIndex, employeeFilter, callerName) {
+   let funcName = getEmployeeMonthlyCalendar.name;
+   return new Promise((resolve, reject) => {
+      if (revenueYear === undefined || revenueYear === "" || revenueYear.length < 4) {
+         reject(funcName + ": Revenue year not provided");
+      } else if (employeeFilter === undefined || employeeFilter === "") {
+         reject(funcName + ": Employee filter not provided");
+      } else {
+         let iRevenueYear = parseInt(revenueYear, 10);
+         let iMonthIndex = parseInt(monthIndex, 10);
+         let iNextMonth = iMonthIndex + 1;
+         let monthStartDate = new Date(iRevenueYear, iMonthIndex, 2);
+         monthStartDate.setUTCHours(0, 0, 0, 0);
+         let monthStopDate = new Date(iRevenueYear, iNextMonth, 1);
+         monthStopDate.setUTCHours(0, 0, 0, 0);
+         let monthName = dateFormat(monthStartDate, "mmm-yyyy");
+         let iEsaId = 0;
+         let iEsaSubType = -1; /* sub-type of esa id has zero-based index */
+         let iCtsEmpId = 0;
+         let iWorkHourPerDay = 0;
+         let iBillingRatePerHour = 0;
+         let filterSplit = employeeFilter.split("-");
+         if (filterSplit.length === 5) {
+            filterSplit.forEach((splitVal, idx) => {
+               if (idx === 0) {
+                  iEsaId = parseInt(splitVal, 10);
+               } else if (idx === 1) {
+                  iEsaSubType = parseInt(splitVal, 10);
+               } else if (idx === 2) {
+                  iCtsEmpId = parseInt(splitVal, 10);
+               } else if (idx === 3) {
+                  iWorkHourPerDay = parseInt(splitVal, 10);
+               } else if (idx === 4) {
+                  iBillingRatePerHour = parseInt(splitVal, 10);
+               }
+            });
+
+            if (iEsaId === 0 || iEsaSubType === -1 || iCtsEmpId === 0 || iWorkHourPerDay === 0 || iBillingRatePerHour === 0) {
+               reject(funcName + ": Filter parameter is not proper");
+            } else {
+               dbObj.getDb().collection(empProjColl).aggregate([
+                  {
+                     $lookup: {
+                        from: "esa_proj",
+                        let: {
+                           esaProjId: "$esaId",
+                           esaProjSubType: "$esaSubType"
+                        },
+                        pipeline: [{
+                           $match: {
+                              $expr: {
+                                 $and: [
+                                    { $eq: ["$esaId", "$$esaProjId"] },
+                                    { $eq: ["$esaSubType", "$$esaProjSubType"] }
+                                 ]
+                              }
+                           }
+                        }],
+                        as: "esa_proj_match"
+                     }
+                  },
+                  {
+                     $unwind: "$esa_proj_match"
+                  },
+                  {
+                     $lookup: {
+                        from: "wrk_loc",
+                        localField: "cityCode",
+                        foreignField: "cityCode",
+                        as: "wrk_loc_match"
+                     }
+                  },
+                  {
+                     $unwind: "$wrk_loc_match"
+                  },
+                  {
+                     $match: {
+                        "esaId": iEsaId,
+                        "esaSubType": iEsaSubType,
+                        "ctsEmpId": iCtsEmpId,
+                        "workHourPerDay": iWorkHourPerDay,
+                        "billRatePerHour": iBillingRatePerHour
+                     }
+                  },
+                  {
+                     $project: {
+                        "_id": {
+                           $concat: [
+                              { $toString: "$esaId" }, "-", { $toString: "$esaSubType" }, "-", { $toString: "$ctsEmpId" }, "-",
+                              { $toString: "$workHourPerDay" }, "-", { $toString: "$billRatePerHour" }
+                           ]
+                        },
+                        "esaId": "$esaId",
+                        "esaSubType": "$esaSubType",
+                        "esaDesc": "$esa_proj_match.esaDesc",
+                        "projName": "$projName",
+                        "ctsEmpId": "$ctsEmpId",
+                        "firstName": "$firstName",
+                        "middleName": "$middleName",
+                        "lastName": "$lastName",
+                        "lowesUid": "$lowesUid",
+                        "deptName": "$deptName",
+                        "sowStart": "$sowStart",
+                        "sowStop": "$sowStop",
+                        "forecastSowStop": "$forecastSowStop",
+                        "cityCode": "$wrk_loc_match.cityCode",
+                        "cityName": "$wrk_loc_match.cityName",
+                        "siteInd": "$wrk_loc_match.siteInd",
+                        "workHourPerDay": "$workHourPerDay",
+                        "billRatePerHour": "$billRatePerHour",
+                        "currency": "$esa_proj_match.currency"
+                     }
+                  },
+                  {
+                     $addFields: {
+                        sowStart: {
+                           $cond: {
+                              if: { $ne: ["$sowStart", ""] }, then: {
+                                 $let: {
+                                    vars: {
+                                       monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                    },
+                                    in: {
+                                       $concat: [
+                                          { $toString: { $toInt: { $substr: ["$sowStart", 0, 2] } } }, "-",
+                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStart", 2, 2] } }] }, "-",
+                                          { $substr: ["$sowStart", 4, -1] }
+                                       ]
+                                    }
+                                 }
+                              }, else: "$sowStart"
+                           }
+                        },
+                        sowStop: {
+                           $cond: {
+                              if: { $ne: ["$sowStop", ""] }, then: {
+                                 $let: {
+                                    vars: {
+                                       monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                    },
+                                    in: {
+                                       $concat: [
+                                          { $toString: { $toInt: { $substr: ["$sowStop", 0, 2] } } }, "-",
+                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$sowStop", 2, 2] } }] }, "-",
+                                          { $substr: ["$sowStop", 4, -1] }
+                                       ]
+                                    }
+                                 }
+                              }, else: "$sowStop"
+                           }
+                        },
+                        forecastSowStop: {
+                           $cond: {
+                              if: { $ne: ["$forecastSowStop", ""] }, then: {
+                                 $let: {
+                                    vars: {
+                                       monthsInString: [, "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                    },
+                                    in: {
+                                       $concat: [
+                                          { $toString: { $toInt: { $substr: ["$forecastSowStop", 0, 2] } } }, "-",
+                                          { $arrayElemAt: ["$$monthsInString", { $toInt: { $substr: ["$forecastSowStop", 2, 2] } }] }, "-",
+                                          { $substr: ["$forecastSowStop", 4, -1] }
+                                       ]
+                                    }
+                                 }
+                              }, else: "$forecastSowStop"
+                           }
+                        }
+                     }
+                  }
+               ]).toArray(async (err, empProjection) => {
+                  if (err) {
+                     reject("DB error in " + funcName + ": " + err);
+                  } else if (empProjection.length === 1) {
+                     let employeeFilter = empProjection[0]._id;
+                     let cityCode = empProjection[0].cityCode;
+                     let monthlyDetail = [];
+                     let selfLeave = [];
+                     let locLeave = [];
+                     let splWrk = [];
+                     let buffer = [];
+
+                     await getBuffer(employeeFilter, monthStartDate, monthStopDate, funcName).then((bufferArr) => {
+                        buffer = bufferArr;
+                     });
+
+                     let calcStart = new Date(monthStartDate);
+                     calcStart.setUTCHours(0, 0, 0, 0);
+                     for (; calcStart.getTime() <= monthStopDate.getTime(); calcStart.setDate(calcStart.getDate() + 1)) {
+                        await getEmployeeLeaves(employeeFilter, calcStart, calcStart, funcName).then((selfLeaveArr) => {
+                           selfLeave = selfLeaveArr;
+                        });
+
+                        await locObj.getPublicHolidays(cityCode, calcStart, calcStart, funcName).then((locHolArr) => {
+                           locLeave = locHolArr;
+                        });
+
+                        await splWrkObj.getSplWrkDays(employeeFilter, cityCode, calcStart, calcStart, funcName).then((splWrkArr) => {
+                           splWrk = splWrkArr;
+                        });
+
+                        monthlyDetail.push({ "date": dateFormat(calcStart, "d-mmm-yyyy"), "leaves": selfLeave, "publicHolidays": locLeave, "specialWorkDays": splWrk });
+                     }
+                     empProjection.push({"monthName": monthName, "buffer": buffer[0], "dateDetail": monthlyDetail });
+                  }
+                  resolve(empProjection);
+               });
+            }
+         } else {
+            reject(funcName + ": Expected filter parameter is not provided");
+         }
+      }
+   });
+}
+
 /* get min and max allocation year for manufacturing year drop down */
 function getMinMaxAllocationYear(esaId, callerName) {
    let funcName = getMinMaxAllocationYear.name;
@@ -877,5 +1096,6 @@ module.exports = {
    getBuffer,
    getProjection,
    getMinMaxAllocationYear,
-   getAllProjMinMaxAllocYear
+   getAllProjMinMaxAllocYear,
+   getEmployeeMonthlyCalendar
 }

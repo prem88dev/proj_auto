@@ -81,7 +81,7 @@
       "cityCode": "MRVL",
       "startDate": "28012020",
       "stopDate": "28012020",
-      "halfDay": "Y",
+      "halfDay": "N",
       "reason": "test for 28-jan",
       "editLock": 0,
 		"lockedBy": "",

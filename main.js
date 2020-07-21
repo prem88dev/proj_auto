@@ -61,11 +61,24 @@ libApp.get("/dashboard", (req, res) => {
     });
 });
 
-/* get projection of one employee */
+/* get projection of employee */
 libApp.get("/employeeRevenue", (req, res) => {
     let revenueYear = req.query.revenueYear;
     let employeeFilter = req.query.employeeFilter;
     empObj.getProjection(revenueYear, employeeFilter, "main").then((empDtl) => {
+        res.json(empDtl);
+    }).catch((err) => {
+        errObj = { errCode: 500, error: err }
+        return res.json(errObj);
+    });
+});
+
+/* get day wise revenue of employee */
+libApp.get("/employeeDailyCalendar", (req, res) => {
+    let revenueYear = req.query.revenueYear;
+    let revenueMonth = req.query.revenueMonth;
+    let employeeFilter = req.query.employeeFilter;
+    empObj.getEmployeeMonthlyCalendar(revenueYear, revenueMonth, employeeFilter, "main").then((empDtl) => {
         res.json(empDtl);
     }).catch((err) => {
         errObj = { errCode: 500, error: err }

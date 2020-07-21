@@ -107,6 +107,8 @@ function calcRevenueHour(workHourPerDay, monthlyDetail, startDate, stopDate, rev
          let dayOfWeek = calcStartDate.getDay();
          let iSelfLeaveHour = 0;
          let iSelfAddlHour = 0;
+         let iLocLeaveHour = 0;
+         let iLocAddlHour = 0;
 
          await computeSelfLocLeaveOrLocSplWorkHour(monthlyDetail[0].leaves, calcStartDate, workHourPerDay, funcName).then((selfLeaveHour) => {
             iSelfLeaveHour = parseInt(selfLeaveHour, 10);
@@ -116,17 +118,39 @@ function calcRevenueHour(workHourPerDay, monthlyDetail, startDate, stopDate, rev
             iSelfAddlHour = parseInt(selfAddlHour, 10);
          });
 
-         if (dayOfWeek > 0 && dayOfWeek < 6) { /* weekday */
-            if (iSelfLeaveHour === 0 || (iSelfAddlHour >= iSelfLeaveHour)) {
+         await computeSelfLocLeaveOrLocSplWorkHour(monthlyDetail[0].publicHolidays, calcStartDate, workHourPerDay, funcName).then((locLeaveHour) => {
+            iLocLeaveHour = parseInt(locLeaveHour, 10);
+         });
+
+         await computeSelfLocLeaveOrLocSplWorkHour(monthlyDetail[0].specialWorkDays["locSplWrk"], calcStartDate, workHourPerDay, funcName).then((locAddlHour) => {
+            iLocAddlHour = parseInt(locAddlHour, 10);
+         });
+
+         if (dayOfWeek > 0 && dayOfWeek < 6 && iLocLeaveHour === 0) { /* weekday and not a location holiday */
+            if (iSelfLeaveHour === 0 || iSelfAddlHour >= iSelfLeaveHour) {
+               /* not personal leave or additional hours and leave hours cancel each other */
                revenueHour += workHourPerDay;
-            } else if (iSelfAddlHour < iSelfLeaveHour) {
-               revenueHour += ((workHourPerDay - iSelfLeaveHour) + iSelfAddlHour);
+            } else if (iSelfLeaveHour > 0 && iSelfAddlHour === 0 && iSelfLeaveHour < workHourPerDay) { /* personal leave */
+               revenueHour += (workHourPerDay - iSelfLeaveHour);
+            } else if (iSelfLeaveHour > 0 && iSelfAddlHour > 0 && iSelfAddlHour < iSelfLeaveHour) { /* over-riding personal leave */
+               if ((iSelfLeaveHour - iSelfAddlHour) <= workHourPerDay) {
+                  revenueHour += workHourPerDay - (iSelfLeaveHour - iSelfAddlHour)
+               }
             }
-         } else { /* weekend */
-            if (iSelfAddlHour >= workHourPerDay) {
+         } else if (dayOfWeek > 0 && dayOfWeek < 6 && iLocLeaveHour > 0) { /* location holiday on a weekday */
+            let effWorkHour = iLocAddlHour;
+            if (effWorkHour >= workHourPerDay || effWorkHour === 0) {
+               effWorkHour = workHourPerDay;
+            }
+
+            if (effWorkHour > iLocLeaveHour) {
+               revenueHour += (effWorkHour - iLocLeaveHour);
+            }
+         } else if (dayOfWeek === 0 || dayOfWeek === 6) { /* weekend with additional work hours */
+            if ((iSelfAddlHour + iLocAddlHour) >= workHourPerDay) {
                revenueHour += workHourPerDay;
-            } else if (iSelfAddlHour > 0) {
-               revenueHour += iSelfAddlHour;
+            } else if ((iSelfAddlHour + iLocAddlHour) < workHourPerDay) {
+               revenueHour += (iSelfAddlHour + iLocAddlHour);
             }
          }
 
@@ -150,7 +174,7 @@ function calcCmiRevenueHour(workHourPerDay, monthlyDetail, startDate, stopDate, 
       } else {
          let dayOfWeek = calcStartDate.getDay();
          let iLocLeaveHour = 0;
-         let iLocAddlHour = 0
+         let iLocAddlHour = 0;
 
          await computeSelfLocLeaveOrLocSplWorkHour(monthlyDetail[0].publicHolidays, calcStartDate, workHourPerDay, funcName).then((locLeaveHour) => {
             iLocLeaveHour = parseInt(locLeaveHour, 10);
@@ -160,13 +184,15 @@ function calcCmiRevenueHour(workHourPerDay, monthlyDetail, startDate, stopDate, 
             iLocAddlHour = parseInt(locAddlHour, 10);
          });
 
-         if (dayOfWeek > 0 && dayOfWeek < 6) { /* weekday */
-            if (iLocLeaveHour === 0 || (iLocAddlHour >= iLocLeaveHour)) { /* not a location holiday */
+         if (dayOfWeek > 0 && dayOfWeek < 6 && iLocLeaveHour === 0) { /* weekday */
+            cmiRevenueHour += workHourPerDay;
+         } else if (dayOfWeek > 0 && dayOfWeek < 6 && iLocLeaveHour > 0) { /* over-riding  location holiday */
+            if (iLocAddlHour >= iLocLeaveHour && iLocAddlHour >= workHourPerDay) {
                cmiRevenueHour += workHourPerDay;
             } else if (iLocAddlHour < iLocLeaveHour) { /* location holiday. but has been made a working day */
                cmiRevenueHour += ((workHourPerDay - iLocLeaveHour) + iLocAddlHour);
             }
-         } else { /* weekend */
+         } else if (dayOfWeek === 0 || dayOfWeek === 6) {
             if (iLocAddlHour >= workHourPerDay) {
                cmiRevenueHour += workHourPerDay;
             } else {
